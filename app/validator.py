@@ -1,5 +1,6 @@
 import csv
 import json
+import sys
 from pathlib import Path
 from dateutil import parser as date_parser
 
@@ -109,9 +110,13 @@ def validate_csv(input_path: Path = DEFAULT_INPUT, output_path: Path = DEFAULT_O
 
 
 if __name__ == "__main__":
-    result = validate_csv()
+    input_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_INPUT
+
+    result = validate_csv(input_path=input_path)
 
     print("Validation complete.")
+    print(f"Input file: {input_path}")
     print(f"Clean records: {result['summary']['clean_count']}")
     print(f"Errors found: {result['summary']['error_count']}")
     print(f"Report saved to {DEFAULT_OUTPUT}")
+
