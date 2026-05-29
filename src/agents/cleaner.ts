@@ -14,46 +14,70 @@ export interface CleaningRoute {
   kind: CleaningIssueKind;
 }
 
-const TWO_DIGIT_YEAR_CUTOFF = 50;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SLASH_DATE_PATTERN = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/;
 
 function stripCell(value: string | undefined): string {
   return (value ?? "").trim();
 }
 
-function parseFlexibleDate(value: string): string | null {
+function isIsoDate(value: string): boolean {
+  return ISO_DATE_PATTERN.test(value);
+}
+
+function normalizeSlashDate(value: string): string | null {
+  const match = SLASH_DATE_PATTERN.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  let year = Number(match[3]);
+
+  if (year < 100) {
+    year = 2000 + year;
+  }
+
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const monthPadded = String(month).padStart(2, "0");
+  const dayPadded = String(day).padStart(2, "0");
+  return `${year}-${monthPadded}-${dayPadded}`;
+}
+
+function normalizeDateToIso(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) {
     return null;
   }
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+  if (isIsoDate(trimmed)) {
     return trimmed;
   }
 
-  const slashMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(trimmed);
-  if (slashMatch) {
-    const month = Number(slashMatch[1]);
-    const day = Number(slashMatch[2]);
-    let year = Number(slashMatch[3]);
-    if (year < 100) {
-      year += year < TWO_DIGIT_YEAR_CUTOFF ? 2000 : 1900;
-    }
-    const iso = new Date(Date.UTC(year, month - 1, day));
-    if (
-      iso.getUTCFullYear() !== year ||
-      iso.getUTCMonth() !== month - 1 ||
-      iso.getUTCDate() !== day
-    ) {
-      return null;
-    }
-    return iso.toISOString().slice(0, 10);
+  const slashNormalized = normalizeSlashDate(trimmed);
+  if (slashNormalized) {
+    return slashNormalized;
   }
 
   const parsed = Date.parse(trimmed);
   if (Number.isNaN(parsed)) {
     return null;
   }
+
   return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function isSlashDateFormat(value: string): boolean {
+  return SLASH_DATE_PATTERN.test(value.trim());
 }
 
 function routeRowIssues(
@@ -70,8 +94,12 @@ function routeRowIssues(
   }
 
   const dateValue = stripCell(row.date);
-  if (dateValue && parseFlexibleDate(dateValue) === null) {
-    routes.push({ row: rowNumber, field: "date", kind: "timestamp" });
+  if (dateValue) {
+    if (isSlashDateFormat(dateValue)) {
+      routes.push({ row: rowNumber, field: "date", kind: "timestamp" });
+    } else if (normalizeDateToIso(dateValue) === null) {
+      routes.push({ row: rowNumber, field: "date", kind: "timestamp" });
+    }
   }
 
   const quantityRaw = stripCell(row.quantity);
@@ -95,10 +123,25 @@ function applyCleaningRoute(
 
   switch (route.kind) {
     case "timestamp": {
-      const normalized = parseFlexibleDate(stripCell(nextRow.date));
+      const original = stripCell(nextRow.date);
+      const normalized = normalizeDateToIso(original);
       if (normalized) {
         nextRow.date = normalized;
-        return { row: nextRow, fixed: true };
+        const wasNormalized = original !== normalized;
+        return {
+          row: nextRow,
+          fixed: true,
+          ...(wasNormalized
+            ? {
+                anomaly: {
+                  row: route.row,
+                  field: "date",
+                  issue: `Date normalized from "${original}" to ISO ${normalized}`,
+                  severity: "medium" as const,
+                },
+              }
+            : {}),
+        };
       }
       return {
         row: nextRow,

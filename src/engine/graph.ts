@@ -45,17 +45,29 @@ export function runStructuralValidation(
 function structuralValidatorNode(state: ADIGraphState): ADIStateUpdate {
   const result = runStructuralValidation(state.cleanedData);
 
+  if (result.passed) {
+    return {
+      validationPassed: true,
+      currentStep: "validate",
+    };
+  }
+
+  const issue = `Structural validation failed: ${result.errors.join("; ")}`;
+  const alreadyRecorded = state.anomalies.some(
+    (anomaly) => anomaly.field === "cleanedData" && anomaly.issue === issue,
+  );
+
   return {
-    validationPassed: result.passed,
+    validationPassed: false,
     currentStep: "validate",
-    ...(result.passed
+    ...(alreadyRecorded
       ? {}
       : {
           anomalies: [
             {
               row: 0,
               field: "cleanedData",
-              issue: `Structural validation failed: ${result.errors.join("; ")}`,
+              issue,
               severity: "high" as const,
             },
           ],
