@@ -231,7 +231,7 @@ function applyCleaningRoute(
         };
       }
       if (route.field === "unit") {
-        const cleanedValue = "ea";
+        const cleanedValue = "UNKNOWN_UNIT";
         nextRow.unit = cleanedValue;
         return {
           row: nextRow,
@@ -240,9 +240,9 @@ function applyCleaningRoute(
             field: "unit",
             originalValue: original,
             cleanedValue,
-            actionTaken: "Filled missing unit with default",
-            confidence: 0.8,
-            requiresReview: false,
+            actionTaken: "Filled missing unit with placeholder",
+            confidence: 0.5,
+            requiresReview: true,
           },
         };
       }
