@@ -1,4 +1,9 @@
-import type { ADIStateUpdate, ADIGraphState, Anomaly } from "../types/state.js";
+import type {
+  ADIStateUpdate,
+  ADIGraphState,
+  Anomaly,
+  Repair,
+} from "../types/state.js";
 import {
   REQUIRED_TICKET_FIELDS,
   type AecTicketRecord,
@@ -12,6 +17,12 @@ export interface CleaningRoute {
   row: number;
   field: RequiredTicketField;
   kind: CleaningIssueKind;
+}
+
+interface CleaningResult {
+  row: RawTicketRow;
+  repair?: Repair;
+  anomaly?: Anomaly;
 }
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -80,6 +91,51 @@ function isSlashDateFormat(value: string): boolean {
   return SLASH_DATE_PATTERN.test(value.trim());
 }
 
+function isDuplicateAnomaly(anomalies: Anomaly[], candidate: Anomaly): boolean {
+  return anomalies.some(
+    (anomaly) =>
+      anomaly.row === candidate.row &&
+      anomaly.field === candidate.field &&
+      anomaly.issue === candidate.issue,
+  );
+}
+
+function isDuplicateRepair(repairs: Repair[], candidate: Repair): boolean {
+  return repairs.some(
+    (repair) =>
+      repair.row === candidate.row &&
+      repair.field === candidate.field &&
+      repair.originalValue === candidate.originalValue &&
+      repair.cleanedValue === candidate.cleanedValue,
+  );
+}
+
+function appendUniqueAnomaly(
+  existing: Anomaly[],
+  pending: Anomaly[],
+  candidate: Anomaly,
+): void {
+  if (
+    !isDuplicateAnomaly(existing, candidate) &&
+    !isDuplicateAnomaly(pending, candidate)
+  ) {
+    pending.push(candidate);
+  }
+}
+
+function appendUniqueRepair(
+  existing: Repair[],
+  pending: Repair[],
+  candidate: Repair,
+): void {
+  if (
+    !isDuplicateRepair(existing, candidate) &&
+    !isDuplicateRepair(pending, candidate)
+  ) {
+    pending.push(candidate);
+  }
+}
+
 function routeRowIssues(
   row: RawTicketRow,
   rowNumber: number,
@@ -108,7 +164,7 @@ function routeRowIssues(
     if (Number.isNaN(quantity) || quantity <= 0) {
       routes.push({ row: rowNumber, field: "quantity", kind: "quantity" });
     }
-  } else if (!routes.some((r) => r.field === "quantity")) {
+  } else if (!routes.some((route) => route.field === "quantity")) {
     routes.push({ row: rowNumber, field: "quantity", kind: "null_value" });
   }
 
@@ -118,7 +174,7 @@ function routeRowIssues(
 function applyCleaningRoute(
   workingRow: RawTicketRow,
   route: CleaningRoute,
-): { row: RawTicketRow; fixed: boolean; anomaly?: Anomaly } {
+): CleaningResult {
   const nextRow = { ...workingRow };
 
   switch (route.kind) {
@@ -127,25 +183,24 @@ function applyCleaningRoute(
       const normalized = normalizeDateToIso(original);
       if (normalized) {
         nextRow.date = normalized;
-        const wasNormalized = original !== normalized;
-        return {
-          row: nextRow,
-          fixed: true,
-          ...(wasNormalized
-            ? {
-                anomaly: {
-                  row: route.row,
-                  field: "date",
-                  issue: `Date normalized from "${original}" to ISO ${normalized}`,
-                  severity: "medium" as const,
-                },
-              }
-            : {}),
-        };
+        if (original !== normalized) {
+          return {
+            row: nextRow,
+            repair: {
+              row: route.row,
+              field: "date",
+              originalValue: original,
+              cleanedValue: normalized,
+              actionTaken: "Normalized date from MM/DD/YY to ISO YYYY-MM-DD",
+              confidence: 0.95,
+              requiresReview: false,
+            },
+          };
+        }
+        return { row: nextRow };
       }
       return {
         row: nextRow,
-        fixed: false,
         anomaly: {
           row: route.row,
           field: "date",
@@ -155,25 +210,60 @@ function applyCleaningRoute(
       };
     }
     case "null_value": {
-      const current = stripCell(nextRow[route.field]);
-      if (current) {
-        return { row: nextRow, fixed: true };
+      const original = stripCell(nextRow[route.field]);
+      if (original) {
+        return { row: nextRow };
       }
       if (route.field === "customer") {
-        nextRow.customer = "UNKNOWN_CUSTOMER";
-        return { row: nextRow, fixed: true };
+        const cleanedValue = "UNKNOWN_CUSTOMER";
+        nextRow.customer = cleanedValue;
+        return {
+          row: nextRow,
+          repair: {
+            row: route.row,
+            field: "customer",
+            originalValue: original,
+            cleanedValue,
+            actionTaken: "Filled missing customer with placeholder",
+            confidence: 0.7,
+            requiresReview: true,
+          },
+        };
       }
       if (route.field === "unit") {
-        nextRow.unit = "ea";
-        return { row: nextRow, fixed: true };
+        const cleanedValue = "ea";
+        nextRow.unit = cleanedValue;
+        return {
+          row: nextRow,
+          repair: {
+            row: route.row,
+            field: "unit",
+            originalValue: original,
+            cleanedValue,
+            actionTaken: "Filled missing unit with default",
+            confidence: 0.8,
+            requiresReview: false,
+          },
+        };
       }
       if (route.field === "job_site") {
-        nextRow.job_site = "UNASSIGNED";
-        return { row: nextRow, fixed: true };
+        const cleanedValue = "UNASSIGNED";
+        nextRow.job_site = cleanedValue;
+        return {
+          row: nextRow,
+          repair: {
+            row: route.row,
+            field: "job_site",
+            originalValue: original,
+            cleanedValue,
+            actionTaken: "Filled missing job site with placeholder",
+            confidence: 0.7,
+            requiresReview: true,
+          },
+        };
       }
       return {
         row: nextRow,
-        fixed: false,
         anomaly: {
           row: route.row,
           field: route.field,
@@ -183,33 +273,24 @@ function applyCleaningRoute(
       };
     }
     case "quantity": {
-      const parsed = Number(stripCell(nextRow.quantity));
+      const original = stripCell(nextRow.quantity);
+      const parsed = Number(original);
       if (!Number.isNaN(parsed) && parsed > 0) {
         nextRow.quantity = String(parsed);
-        return { row: nextRow, fixed: true };
+        return { row: nextRow };
       }
-      const fallback = Math.abs(parsed) || 1;
-      if (fallback > 0) {
-        nextRow.quantity = String(fallback);
-        return {
-          row: nextRow,
-          fixed: true,
-          anomaly: {
-            row: route.row,
-            field: "quantity",
-            issue: "Quantity corrected from invalid or negative value",
-            severity: "medium",
-          },
-        };
-      }
+      const cleanedValue = String(Math.abs(parsed) || 1);
+      nextRow.quantity = cleanedValue;
       return {
         row: nextRow,
-        fixed: false,
-        anomaly: {
+        repair: {
           row: route.row,
           field: "quantity",
-          issue: "Invalid quantity",
-          severity: "high",
+          originalValue: original,
+          cleanedValue,
+          actionTaken: "Corrected invalid or negative quantity to absolute value",
+          confidence: 0.75,
+          requiresReview: true,
         },
       };
     }
@@ -253,38 +334,75 @@ function rowToRecord(row: RawTicketRow): AecTicketRecord | null {
   };
 }
 
+function buildCleanedRecord(
+  rawRow: RawTicketRow,
+  cleanedRow: RawTicketRow,
+): AecTicketRecord | null {
+  const fromCleaned = rowToRecord(cleanedRow);
+  if (fromCleaned) {
+    return fromCleaned;
+  }
+
+  const ticket_id = stripCell(cleanedRow.ticket_id);
+  const date = stripCell(cleanedRow.date);
+  const customer = stripCell(cleanedRow.customer);
+  const material = stripCell(cleanedRow.material);
+  const unit = stripCell(cleanedRow.unit);
+  const job_site = stripCell(cleanedRow.job_site);
+  const quantityRaw = stripCell(cleanedRow.quantity);
+  const quantity = Number(quantityRaw);
+
+  if (!ticket_id && !stripCell(rawRow.ticket_id)) {
+    return null;
+  }
+
+  return {
+    ticket_id: ticket_id || stripCell(rawRow.ticket_id),
+    date: date || stripCell(rawRow.date),
+    customer: customer || stripCell(rawRow.customer),
+    material: material || stripCell(rawRow.material),
+    quantity: Number.isNaN(quantity) ? NaN : quantity,
+    unit: unit || stripCell(rawRow.unit),
+    job_site: job_site || stripCell(rawRow.job_site),
+  };
+}
+
 /**
- * Cleaner node: routes each row through timestamp, null, and quantity fixers,
- * then materializes `cleanedData` for downstream Zod validation.
+ * Cleaner node: applies repairs on copies of raw rows, preserves rawData,
+ * and materializes cleanedData for downstream Zod validation.
  */
 export function cleanerNode(state: ADIGraphState): ADIStateUpdate {
-  const workingRows = state.rawData.map((row) => ({ ...row }));
   const newAnomalies: Anomaly[] = [];
+  const newRepairs: Repair[] = [];
+  const cleanedData: AecTicketRecord[] = [];
 
-  for (let index = 0; index < workingRows.length; index += 1) {
+  for (let index = 0; index < state.rawData.length; index += 1) {
+    const rawRow = state.rawData[index];
     const rowNumber = index + 2;
-    let row = workingRows[index];
-    const routes = routeRowIssues(row, rowNumber);
+    let workingRow = { ...rawRow };
+    const routes = routeRowIssues(workingRow, rowNumber);
 
     for (const route of routes) {
-      const result = applyCleaningRoute(row, route);
-      row = result.row;
+      const result = applyCleaningRoute(workingRow, route);
+      workingRow = result.row;
+      if (result.repair) {
+        appendUniqueRepair(state.repairs, newRepairs, result.repair);
+      }
       if (result.anomaly) {
-        newAnomalies.push(result.anomaly);
+        appendUniqueAnomaly(state.anomalies, newAnomalies, result.anomaly);
       }
     }
 
-    workingRows[index] = row;
+    const record = buildCleanedRecord(rawRow, workingRow);
+    if (record) {
+      cleanedData.push(record);
+    }
   }
 
-  const cleanedData = workingRows
-    .map((row) => rowToRecord(row))
-    .filter((record): record is AecTicketRecord => record !== null);
-
   return {
-    rawData: workingRows,
     cleanedData,
     anomalies: newAnomalies,
+    repairs: newRepairs,
     currentStep: "clean",
     cleanAttempts: state.cleanAttempts + 1,
     validationPassed: undefined,

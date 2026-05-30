@@ -54,7 +54,10 @@ function structuralValidatorNode(state: ADIGraphState): ADIStateUpdate {
 
   const issue = `Structural validation failed: ${result.errors.join("; ")}`;
   const alreadyRecorded = state.anomalies.some(
-    (anomaly) => anomaly.field === "cleanedData" && anomaly.issue === issue,
+    (anomaly) =>
+      anomaly.row === 0 &&
+      anomaly.field === "cleanedData" &&
+      anomaly.issue === issue,
   );
 
   return {
@@ -112,6 +115,7 @@ export async function runADIWorkflow(
     rawData,
     cleanedData: [],
     anomalies: [],
+    repairs: [],
     currentStep: "ingest",
     cleanAttempts: 0,
   });

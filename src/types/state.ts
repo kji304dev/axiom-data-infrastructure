@@ -16,6 +16,16 @@ export interface Anomaly {
   severity: AnomalySeverity;
 }
 
+export interface Repair {
+  row: number;
+  field: string;
+  originalValue: string;
+  cleanedValue: string;
+  actionTaken: string;
+  confidence: number;
+  requiresReview: boolean;
+}
+
 /** Single row from an industrial ticket CSV before cleaning. */
 export type RawTicketRow = Record<string, string>;
 
@@ -34,6 +44,7 @@ export interface ADIState {
   rawData: RawTicketRow[];
   cleanedData: AecTicketRecord[];
   anomalies: Anomaly[];
+  repairs: Repair[];
   currentStep: PipelineStep;
   healthScore?: number;
   validationPassed?: boolean;
@@ -54,7 +65,7 @@ export type RequiredTicketField = (typeof REQUIRED_TICKET_FIELDS)[number];
 
 export const ADIStateAnnotation = Annotation.Root({
   rawData: Annotation<RawTicketRow[]>({
-    reducer: (_left, right) => right,
+    reducer: (left, right) => (left.length === 0 ? right : left),
     default: () => [],
   }),
   cleanedData: Annotation<AecTicketRecord[]>({
@@ -62,6 +73,10 @@ export const ADIStateAnnotation = Annotation.Root({
     default: () => [],
   }),
   anomalies: Annotation<Anomaly[]>({
+    reducer: (left, right) => left.concat(right),
+    default: () => [],
+  }),
+  repairs: Annotation<Repair[]>({
     reducer: (left, right) => left.concat(right),
     default: () => [],
   }),
