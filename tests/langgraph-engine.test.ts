@@ -71,6 +71,8 @@ describe("LangGraph ADI engine", () => {
     ).toBe(true);
 
     expect(result.validationPassed).toBe(false);
+    expect(result.healthScore).toBeLessThan(80);
+    expect(result.healthScore).toBe(38);
   });
 
   it("passes validation for the clean AEC ticket sample", async () => {
@@ -91,7 +93,8 @@ describe("LangGraph ADI engine", () => {
 
     expect(result.rawData).toEqual(rawData);
     expect(result.validationPassed).toBe(false);
-    expect(result.healthScore).toBeLessThan(80);
+    expect(result.healthScore).toBeLessThan(60);
+    expect(result.healthScore).toBe(5);
 
     expect(
       result.anomalies.some(

@@ -4,7 +4,7 @@
 
 - **Input file:** /Users/kji/dev/axiom-data-infrastructure/samples/unrecoverable_aec_ticket.csv
 - **Total rows:** 2
-- **Health score:** 70
+- **Health score:** 5
 - **validationPassed:** false
 - **Total anomalies:** 2
 - **Total repairs:** 7
