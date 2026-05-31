@@ -1,30 +1,76 @@
-import type { ADIStateUpdate, ADIGraphState } from "../types/state.js";
+import type { ADIStateUpdate, ADIGraphState, Anomaly } from "../types/state.js";
 
-const HIGH_ANOMALY_PENALTY = 20;
-const MEDIUM_ANOMALY_PENALTY = 10;
-const REVIEW_REPAIR_PENALTY = 5;
-const AUTO_REPAIR_PENALTY = 2;
+export const HIGH_ANOMALY_PENALTY = 20;
+export const MEDIUM_ANOMALY_PENALTY = 10;
+export const REVIEW_REPAIR_PENALTY = 5;
+export const AUTO_REPAIR_PENALTY = 2;
+
+export interface HealthScoreBreakdown {
+  startingScore: number;
+  highAnomalyCount: number;
+  highAnomalyDeduction: number;
+  mediumAnomalyCount: number;
+  mediumAnomalyDeduction: number;
+  reviewRepairCount: number;
+  reviewRepairDeduction: number;
+  confidentRepairCount: number;
+  confidentRepairDeduction: number;
+  finalScore: number;
+}
+
+/** Anomalies that affect the health score (excludes internal structural validation). */
+export function getScoringAnomalies(anomalies: Anomaly[]): Anomaly[] {
+  return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
+}
+
+export function buildHealthScoreBreakdown(
+  state: ADIGraphState,
+): HealthScoreBreakdown {
+  const scoringAnomalies = getScoringAnomalies(state.anomalies);
+  const highAnomalyCount = scoringAnomalies.filter(
+    (anomaly) => anomaly.severity === "high",
+  ).length;
+  const mediumAnomalyCount = scoringAnomalies.filter(
+    (anomaly) => anomaly.severity === "medium",
+  ).length;
+  const reviewRepairCount = state.repairs.filter(
+    (repair) => repair.requiresReview,
+  ).length;
+  const confidentRepairCount = state.repairs.length - reviewRepairCount;
+
+  const highAnomalyDeduction = highAnomalyCount * HIGH_ANOMALY_PENALTY;
+  const mediumAnomalyDeduction = mediumAnomalyCount * MEDIUM_ANOMALY_PENALTY;
+  const reviewRepairDeduction = reviewRepairCount * REVIEW_REPAIR_PENALTY;
+  const confidentRepairDeduction = confidentRepairCount * AUTO_REPAIR_PENALTY;
+
+  const finalScore = Math.max(
+    0,
+    Math.min(
+      100,
+      100 -
+        highAnomalyDeduction -
+        mediumAnomalyDeduction -
+        reviewRepairDeduction -
+        confidentRepairDeduction,
+    ),
+  );
+
+  return {
+    startingScore: 100,
+    highAnomalyCount,
+    highAnomalyDeduction,
+    mediumAnomalyCount,
+    mediumAnomalyDeduction,
+    reviewRepairCount,
+    reviewRepairDeduction,
+    confidentRepairCount,
+    confidentRepairDeduction,
+    finalScore,
+  };
+}
 
 export function calculateHealthScore(state: ADIGraphState): number {
-  let score = 100;
-
-  for (const anomaly of state.anomalies) {
-    if (anomaly.severity === "high") {
-      score -= HIGH_ANOMALY_PENALTY;
-    } else if (anomaly.severity === "medium") {
-      score -= MEDIUM_ANOMALY_PENALTY;
-    }
-  }
-
-  for (const repair of state.repairs) {
-    if (repair.requiresReview) {
-      score -= REVIEW_REPAIR_PENALTY;
-    } else {
-      score -= AUTO_REPAIR_PENALTY;
-    }
-  }
-
-  return Math.max(0, Math.min(100, score));
+  return buildHealthScoreBreakdown(state).finalScore;
 }
 
 /**

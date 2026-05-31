@@ -1,3 +1,4 @@
+import { buildHealthScoreBreakdown } from "../agents/grader.js";
 import type { ADIGraphState, Anomaly } from "../types/state.js";
 
 export interface MarkdownReportOptions {
@@ -21,6 +22,26 @@ function buildTable(headers: string[], rows: string[][]): string {
   const separatorRow = `| ${headers.map(() => "---").join(" | ")} |`;
   const bodyRows = rows.map((row) => `| ${row.join(" | ")} |`);
   return [headerRow, separatorRow, ...bodyRows].join("\n");
+}
+
+function formatDeduction(amount: number): string {
+  return amount === 0 ? "0" : `−${amount}`;
+}
+
+function buildHealthScoreExplanationSection(result: ADIGraphState): string[] {
+  const breakdown = buildHealthScoreBreakdown(result);
+
+  return [
+    "## Health Score Explanation",
+    "",
+    `- **Starting score:** ${breakdown.startingScore}`,
+    `- **High-severity anomalies:** ${breakdown.highAnomalyCount} (${formatDeduction(breakdown.highAnomalyDeduction)})`,
+    `- **Medium-severity anomalies:** ${breakdown.mediumAnomalyCount} (${formatDeduction(breakdown.mediumAnomalyDeduction)})`,
+    `- **Repairs requiring review:** ${breakdown.reviewRepairCount} (${formatDeduction(breakdown.reviewRepairDeduction)})`,
+    `- **Confident repairs:** ${breakdown.confidentRepairCount} (${formatDeduction(breakdown.confidentRepairDeduction)})`,
+    `- **Final health score:** ${breakdown.finalScore}`,
+    "",
+  ];
 }
 
 function isUserFacingAnomaly(anomaly: Anomaly): boolean {
@@ -67,6 +88,8 @@ export function generateMarkdownReport(
   const repairsRequiringReview = result.repairs.filter(
     (repair) => repair.requiresReview,
   ).length;
+  const healthScore =
+    result.healthScore ?? buildHealthScoreBreakdown(result).finalScore;
 
   const lines: string[] = [
     "# ADI Clean vs Dirty Report",
@@ -75,12 +98,13 @@ export function generateMarkdownReport(
     "",
     `- **Input file:** ${escapeTableCell(inputFilePath)}`,
     `- **Total rows:** ${result.rawData.length}`,
-    `- **Health score:** ${result.healthScore ?? "N/A"}`,
+    `- **Health score:** ${healthScore}`,
     `- **validationPassed:** ${result.validationPassed ?? false}`,
     `- **Total anomalies:** ${userFacingAnomalies.length}`,
     `- **Total repairs:** ${result.repairs.length}`,
     `- **Repairs requiring review:** ${repairsRequiringReview}`,
     "",
+    ...buildHealthScoreExplanationSection(result),
     "## Repairs",
     "",
   ];
