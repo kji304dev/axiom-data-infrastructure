@@ -6,6 +6,7 @@ import type { Anomaly } from "../src/types/state.js";
 
 const DIRTY_SAMPLE_CSV = resolve("samples/dirty_aec_ticket.csv");
 const CLEAN_SAMPLE_CSV = resolve("samples/clean_aec_ticket.csv");
+const UNRECOVERABLE_SAMPLE_CSV = resolve("samples/unrecoverable_aec_ticket.csv");
 
 function getUserFacingAnomalies(anomalies: Anomaly[]): Anomaly[] {
   return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
@@ -82,5 +83,45 @@ describe("LangGraph ADI engine", () => {
     expect(getUserFacingAnomalies(result.anomalies)).toHaveLength(0);
     expect(result.validationPassed).toBe(true);
     expect(result.healthScore).toBe(100);
+  });
+
+  it("handles unrecoverable AEC ticket data without throwing", async () => {
+    const rawData = readTicketCsv(UNRECOVERABLE_SAMPLE_CSV);
+    const result = await runADIWorkflow(rawData);
+
+    expect(result.rawData).toEqual(rawData);
+    expect(result.validationPassed).toBe(false);
+    expect(result.healthScore).toBeLessThan(80);
+
+    expect(
+      result.anomalies.some(
+        (anomaly) =>
+          anomaly.field === "date" && anomaly.issue === "Invalid date format",
+      ),
+    ).toBe(true);
+
+    expect(
+      result.anomalies.some(
+        (anomaly) =>
+          anomaly.field === "quantity" ||
+          anomaly.field === "cleanedData",
+      ),
+    ).toBe(true);
+
+    expect(
+      result.repairs.some(
+        (repair) => repair.requiresReview,
+      ),
+    ).toBe(true);
+
+    expect(
+      result.repairs.some(
+        (repair) =>
+          repair.requiresReview &&
+          (repair.cleanedValue === "UNKNOWN_CUSTOMER" ||
+            repair.cleanedValue === "UNASSIGNED" ||
+            repair.cleanedValue === "UNKNOWN_UNIT"),
+      ),
+    ).toBe(true);
   });
 });

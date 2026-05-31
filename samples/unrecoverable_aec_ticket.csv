@@ -1,0 +1,3 @@
+ticket_id,date,customer,material,quantity,unit,job_site
+2001,bad-date,,Concrete,-5,,
+2002,garbage-date,Delta Construction,Gravel,not-a-number,,
