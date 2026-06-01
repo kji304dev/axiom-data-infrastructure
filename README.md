@@ -25,11 +25,26 @@ npm install
 
 ### Run
 
+Default output directory (`output/`):
+
 ```bash
 npm run dev -- samples/dirty_aec_ticket.csv
 ```
 
-If no file path is provided, it defaults to `samples/dirty_aec_ticket.csv`.
+Custom output directory:
+
+```bash
+npm run dev -- samples/dirty_aec_ticket.csv --output-dir output/runs/dirty-aec-test
+```
+
+If no input path is provided, it defaults to `samples/dirty_aec_ticket.csv`.
+
+Reports are written to:
+
+- `<output-dir>/langgraph-report.json`
+- `<output-dir>/clean-vs-dirty-report.md`
+
+The output directory is created automatically if it does not exist.
 
 ### Typecheck
 
@@ -39,10 +54,14 @@ npm run typecheck
 
 ### Outputs
 
+By default, reports are written to `output/`:
+
 | File | Description |
 |------|-------------|
 | `output/langgraph-report.json` | Full workflow state (raw data, cleaned data, repairs, anomalies, scores) |
 | `output/clean-vs-dirty-report.md` | Human-readable summary with repairs and customer-facing anomalies |
+
+Use `--output-dir <path>` to write reports to a different directory (see **Run** above).
 
 ### Operator overrides
 
