@@ -105,9 +105,27 @@ export function generateMarkdownReport(
     `- **Repairs requiring review:** ${repairsRequiringReview}`,
     "",
     ...buildHealthScoreExplanationSection(result),
-    "## Repairs",
+    "## Row Statuses",
     "",
   ];
+
+  if (result.rowStatuses.length === 0) {
+    lines.push("_No row statuses recorded._", "");
+  } else {
+    lines.push(
+      buildTable(
+        ["row", "status", "reason"],
+        result.rowStatuses.map((rowStatus) => [
+          String(rowStatus.row),
+          formatCell(rowStatus.status),
+          formatCell(rowStatus.reason),
+        ]),
+      ),
+      "",
+    );
+  }
+
+  lines.push("## Repairs", "");
 
   if (result.repairs.length === 0) {
     lines.push("_No repairs recorded._", "");

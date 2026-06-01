@@ -116,6 +116,7 @@ export async function runADIWorkflow(
     cleanedData: [],
     anomalies: [],
     repairs: [],
+    rowStatuses: [],
     currentStep: "ingest",
     cleanAttempts: 0,
   });

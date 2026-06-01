@@ -26,6 +26,14 @@ export interface Repair {
   requiresReview: boolean;
 }
 
+export type RowStatusKind = "clean" | "repaired" | "needs_review" | "rejected";
+
+export interface RowStatus {
+  row: number;
+  status: RowStatusKind;
+  reason: string;
+}
+
 /** Single row from an industrial ticket CSV before cleaning. */
 export type RawTicketRow = Record<string, string>;
 
@@ -45,6 +53,7 @@ export interface ADIState {
   cleanedData: AecTicketRecord[];
   anomalies: Anomaly[];
   repairs: Repair[];
+  rowStatuses: RowStatus[];
   currentStep: PipelineStep;
   healthScore?: number;
   validationPassed?: boolean;
@@ -78,6 +87,10 @@ export const ADIStateAnnotation = Annotation.Root({
   }),
   repairs: Annotation<Repair[]>({
     reducer: (left, right) => left.concat(right),
+    default: () => [],
+  }),
+  rowStatuses: Annotation<RowStatus[]>({
+    reducer: (_left, right) => right,
     default: () => [],
   }),
   currentStep: Annotation<PipelineStep>,

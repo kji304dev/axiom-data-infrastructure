@@ -1,8 +1,9 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runADIWorkflow } from "../src/engine/graph.js";
+import { getRowStatus } from "../src/agents/rowStatus.js";
 import { readTicketCsv } from "../src/io/csvReader.js";
-import type { Anomaly } from "../src/types/state.js";
+import type { Anomaly, RowStatusKind } from "../src/types/state.js";
 
 const DIRTY_SAMPLE_CSV = resolve("samples/dirty_aec_ticket.csv");
 const CLEAN_SAMPLE_CSV = resolve("samples/clean_aec_ticket.csv");
@@ -10,6 +11,15 @@ const UNRECOVERABLE_SAMPLE_CSV = resolve("samples/unrecoverable_aec_ticket.csv")
 
 function getUserFacingAnomalies(anomalies: Anomaly[]): Anomaly[] {
   return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
+}
+
+function expectRowStatus(
+  rowStatuses: { row: number; status: RowStatusKind }[],
+  csvRow: number,
+  expectedStatus: RowStatusKind,
+): void {
+  const rowStatus = getRowStatus(rowStatuses, csvRow);
+  expect(rowStatus?.status).toBe(expectedStatus);
 }
 
 describe("LangGraph ADI engine", () => {
@@ -73,6 +83,12 @@ describe("LangGraph ADI engine", () => {
     expect(result.validationPassed).toBe(false);
     expect(result.healthScore).toBeLessThan(80);
     expect(result.healthScore).toBe(58);
+
+    expect(result.rowStatuses).toHaveLength(4);
+    expectRowStatus(result.rowStatuses, 2, "clean");
+    expectRowStatus(result.rowStatuses, 3, "needs_review");
+    expectRowStatus(result.rowStatuses, 4, "rejected");
+    expectRowStatus(result.rowStatuses, 5, "clean");
   });
 
   it("passes validation for the clean AEC ticket sample", async () => {
@@ -85,6 +101,10 @@ describe("LangGraph ADI engine", () => {
     expect(getUserFacingAnomalies(result.anomalies)).toHaveLength(0);
     expect(result.validationPassed).toBe(true);
     expect(result.healthScore).toBe(100);
+
+    expect(result.rowStatuses).toHaveLength(2);
+    expectRowStatus(result.rowStatuses, 2, "clean");
+    expectRowStatus(result.rowStatuses, 3, "clean");
   });
 
   it("handles unrecoverable AEC ticket data without throwing", async () => {
@@ -126,5 +146,9 @@ describe("LangGraph ADI engine", () => {
             repair.cleanedValue === "UNKNOWN_UNIT"),
       ),
     ).toBe(true);
+
+    expect(result.rowStatuses).toHaveLength(2);
+    expectRowStatus(result.rowStatuses, 2, "rejected");
+    expectRowStatus(result.rowStatuses, 3, "rejected");
   });
 });

@@ -1,4 +1,5 @@
 import type { ADIStateUpdate, ADIGraphState, Anomaly } from "../types/state.js";
+import { classifyRowStatuses } from "./rowStatus.js";
 
 export const HIGH_ANOMALY_PENALTY = 20;
 export const MEDIUM_ANOMALY_PENALTY = 10;
@@ -80,6 +81,7 @@ export function calculateHealthScore(state: ADIGraphState): number {
 export function graderNode(state: ADIGraphState): ADIStateUpdate {
   return {
     healthScore: calculateHealthScore(state),
+    rowStatuses: classifyRowStatuses(state),
     currentStep: "complete",
   };
 }
