@@ -44,6 +44,22 @@ npm run typecheck
 | `output/langgraph-report.json` | Full workflow state (raw data, cleaned data, repairs, anomalies, scores) |
 | `output/clean-vs-dirty-report.md` | Human-readable summary with repairs and customer-facing anomalies |
 
+### Operator overrides
+
+The engine reads optional manual decisions from `operator/decisions.json`. This file is **not** committed because it may contain customer or operator notes.
+
+1. Copy the template:
+
+```bash
+cp operator/decisions.example.json operator/decisions.json
+```
+
+2. Edit `operator/decisions.json` with local row overrides (`row`, `finalDecision`, `operatorNote`).
+
+Allowed `finalDecision` values: `approved`, `approved_with_changes`, `needs_customer_input`, `rejected`.
+
+If `operator/decisions.json` is missing, the engine still runs and uses recommended decisions only.
+
 ### Note
 
 This TypeScript engine is currently on the **`langgraph-typescript-engine`** branch and should **not** replace the Python MVP yet. The Python validator in `app/validator.py` remains the baseline for comparison.

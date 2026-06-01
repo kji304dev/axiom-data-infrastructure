@@ -1,6 +1,9 @@
 # Node
 node_modules/
 
+# Local operator overrides (may contain customer/operator notes)
+operator/decisions.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
