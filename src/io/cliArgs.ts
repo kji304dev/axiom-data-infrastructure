@@ -12,6 +12,7 @@ export interface OutputPaths {
   outputDir: string;
   jsonPath: string;
   markdownPath: string;
+  manifestPath: string;
 }
 
 export function parseCliArgs(argv: string[]): CliArgs {
@@ -56,5 +57,6 @@ export function resolveOutputPaths(outputDir: string): OutputPaths {
     outputDir: resolvedOutputDir,
     jsonPath: resolve(resolvedOutputDir, "langgraph-report.json"),
     markdownPath: resolve(resolvedOutputDir, "clean-vs-dirty-report.md"),
+    manifestPath: resolve(resolvedOutputDir, "manifest.json"),
   };
 }

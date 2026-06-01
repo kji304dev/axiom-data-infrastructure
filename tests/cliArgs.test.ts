@@ -57,5 +57,8 @@ describe("resolveOutputPaths", () => {
     expect(paths.markdownPath).toBe(
       resolve("output/runs/dirty-aec-test/clean-vs-dirty-report.md"),
     );
+    expect(paths.manifestPath).toBe(
+      resolve("output/runs/dirty-aec-test/manifest.json"),
+    );
   });
 });

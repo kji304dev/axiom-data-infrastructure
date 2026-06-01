@@ -5,11 +5,12 @@ import { parseCliArgs, resolveOutputPaths } from "./io/cliArgs.js";
 import { readTicketCsv } from "./io/csvReader.js";
 import { generateMarkdownReport } from "./io/markdownReport.js";
 import { attachRunMetadata } from "./io/runMetadata.js";
+import { createAndWriteRunManifest } from "./io/runManifest.js";
 
 async function main(): Promise<void> {
   const { inputPath, outputDir } = parseCliArgs(process.argv.slice(2));
   const resolvedInputPath = resolve(inputPath);
-  const { outputDir: resolvedOutputDir, jsonPath, markdownPath } =
+  const { outputDir: resolvedOutputDir, jsonPath, markdownPath, manifestPath } =
     resolveOutputPaths(outputDir);
 
   const rawData = readTicketCsv(inputPath);
@@ -27,11 +28,16 @@ async function main(): Promise<void> {
     result,
   });
   writeFileSync(markdownPath, markdownReport, "utf-8");
+  createAndWriteRunManifest(resolvedOutputDir, result, {
+    jsonPath,
+    markdownPath,
+  });
 
   console.log(`Input file: ${resolvedInputPath}`);
   console.log(`Output directory: ${resolvedOutputDir}`);
   console.log(`JSON report saved to: ${jsonPath}`);
   console.log(`Markdown report saved to: ${markdownPath}`);
+  console.log(`Manifest saved to: ${manifestPath}`);
   console.log(`Total rows: ${result.rawData.length}`);
   console.log(`Anomaly count: ${result.anomalies.length}`);
   console.log(`validationPassed: ${result.validationPassed}`);
