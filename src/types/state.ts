@@ -34,6 +34,18 @@ export interface RowStatus {
   reason: string;
 }
 
+export type RecommendedDecision =
+  | "approved"
+  | "approved_with_changes"
+  | "needs_customer_input"
+  | "rejected";
+
+export interface OperatorDecision {
+  row: number;
+  recommendedDecision: RecommendedDecision;
+  reason: string;
+}
+
 /** Single row from an industrial ticket CSV before cleaning. */
 export type RawTicketRow = Record<string, string>;
 
@@ -54,6 +66,7 @@ export interface ADIState {
   anomalies: Anomaly[];
   repairs: Repair[];
   rowStatuses: RowStatus[];
+  operatorDecisions: OperatorDecision[];
   currentStep: PipelineStep;
   healthScore?: number;
   validationPassed?: boolean;
@@ -90,6 +103,10 @@ export const ADIStateAnnotation = Annotation.Root({
     default: () => [],
   }),
   rowStatuses: Annotation<RowStatus[]>({
+    reducer: (_left, right) => right,
+    default: () => [],
+  }),
+  operatorDecisions: Annotation<OperatorDecision[]>({
     reducer: (_left, right) => right,
     default: () => [],
   }),

@@ -1,5 +1,6 @@
 import type { ADIStateUpdate, ADIGraphState, Anomaly } from "../types/state.js";
 import { classifyRowStatuses } from "./rowStatus.js";
+import { recommendOperatorDecisions } from "./operatorDecision.js";
 
 export const HIGH_ANOMALY_PENALTY = 20;
 export const MEDIUM_ANOMALY_PENALTY = 10;
@@ -79,9 +80,12 @@ export function calculateHealthScore(state: ADIGraphState): number {
  * and repairs (0–100, higher is healthier).
  */
 export function graderNode(state: ADIGraphState): ADIStateUpdate {
+  const rowStatuses = classifyRowStatuses(state);
+
   return {
     healthScore: calculateHealthScore(state),
-    rowStatuses: classifyRowStatuses(state),
+    rowStatuses,
+    operatorDecisions: recommendOperatorDecisions(rowStatuses),
     currentStep: "complete",
   };
 }

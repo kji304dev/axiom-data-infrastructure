@@ -28,6 +28,15 @@
 | 4 | rejected | date: Invalid date format |
 | 5 | clean | No repairs or anomalies |
 
+## Operator Decisions
+
+| row | recommendedDecision | reason |
+| --- | --- | --- |
+| 2 | approved | Row passed with no repairs or anomalies: No repairs or anomalies |
+| 3 | needs_customer_input | Row has repairs or issues that require customer input: Repairs require operator review (customer, job_site, quantity) |
+| 4 | rejected | Row cannot be approved due to unrecoverable data quality issues: date: Invalid date format |
+| 5 | approved | Row passed with no repairs or anomalies: No repairs or anomalies |
+
 ## Repairs
 
 | row | field | originalValue | cleanedValue | confidence | requiresReview | actionTaken |

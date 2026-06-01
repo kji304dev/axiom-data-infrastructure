@@ -125,6 +125,24 @@ export function generateMarkdownReport(
     );
   }
 
+  lines.push("## Operator Decisions", "");
+
+  if (result.operatorDecisions.length === 0) {
+    lines.push("_No operator decisions recorded._", "");
+  } else {
+    lines.push(
+      buildTable(
+        ["row", "recommendedDecision", "reason"],
+        result.operatorDecisions.map((decision) => [
+          String(decision.row),
+          formatCell(decision.recommendedDecision),
+          formatCell(decision.reason),
+        ]),
+      ),
+      "",
+    );
+  }
+
   lines.push("## Repairs", "");
 
   if (result.repairs.length === 0) {
