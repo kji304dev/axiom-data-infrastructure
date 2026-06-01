@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 import { runADIWorkflow } from "../src/engine/graph.js";
 import { getRowStatus } from "../src/agents/rowStatus.js";
 import { getOperatorDecision } from "../src/agents/operatorDecision.js";
+import { getFinalOperatorDecision } from "../src/io/operatorOverrides.js";
 import { readTicketCsv } from "../src/io/csvReader.js";
 import type { Anomaly, RecommendedDecision, RowStatusKind } from "../src/types/state.js";
 
 const DIRTY_SAMPLE_CSV = resolve("samples/dirty_aec_ticket.csv");
 const CLEAN_SAMPLE_CSV = resolve("samples/clean_aec_ticket.csv");
 const UNRECOVERABLE_SAMPLE_CSV = resolve("samples/unrecoverable_aec_ticket.csv");
+const NO_OVERRIDES_PATH = resolve("operator/no-overrides-for-tests.json");
+const OPERATOR_OVERRIDES_PATH = resolve("operator/decisions.json");
 
 function getUserFacingAnomalies(anomalies: Anomaly[]): Anomaly[] {
   return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
@@ -32,10 +35,22 @@ function expectOperatorDecision(
   expect(decision?.recommendedDecision).toBe(expectedDecision);
 }
 
+function expectFinalOperatorDecision(
+  finalDecisions: {
+    row: number;
+    finalDecision: RecommendedDecision;
+  }[],
+  csvRow: number,
+  expectedDecision: RecommendedDecision,
+): void {
+  const decision = getFinalOperatorDecision(finalDecisions, csvRow);
+  expect(decision?.finalDecision).toBe(expectedDecision);
+}
+
 describe("LangGraph ADI engine", () => {
   it("cleans the dirty AEC ticket sample while preserving raw data", async () => {
     const rawData = readTicketCsv(DIRTY_SAMPLE_CSV);
-    const result = await runADIWorkflow(rawData);
+    const result = await runADIWorkflow(rawData, OPERATOR_OVERRIDES_PATH);
 
     const ticket1002Raw = result.rawData.find(
       (row) => row.ticket_id === "1002",
@@ -105,11 +120,20 @@ describe("LangGraph ADI engine", () => {
     expectOperatorDecision(result.operatorDecisions, 3, "needs_customer_input");
     expectOperatorDecision(result.operatorDecisions, 4, "rejected");
     expectOperatorDecision(result.operatorDecisions, 5, "approved");
+
+    expect(result.finalOperatorDecisions).toHaveLength(4);
+    expectOperatorDecision(result.operatorDecisions, 3, "needs_customer_input");
+    const row3Final = getFinalOperatorDecision(result.finalOperatorDecisions, 3);
+    expect(row3Final?.finalDecision).toBe("approved_with_changes");
+    expect(row3Final?.operatorNote).toContain("dispatch team");
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 2, "approved");
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 4, "rejected");
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 5, "approved");
   });
 
   it("passes validation for the clean AEC ticket sample", async () => {
     const rawData = readTicketCsv(CLEAN_SAMPLE_CSV);
-    const result = await runADIWorkflow(rawData);
+    const result = await runADIWorkflow(rawData, NO_OVERRIDES_PATH);
 
     expect(result.rawData).toHaveLength(2);
     expect(result.cleanedData).toHaveLength(2);
@@ -125,11 +149,15 @@ describe("LangGraph ADI engine", () => {
     expect(result.operatorDecisions).toHaveLength(2);
     expectOperatorDecision(result.operatorDecisions, 2, "approved");
     expectOperatorDecision(result.operatorDecisions, 3, "approved");
+
+    expect(result.finalOperatorDecisions).toHaveLength(2);
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 2, "approved");
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 3, "approved");
   });
 
   it("handles unrecoverable AEC ticket data without throwing", async () => {
     const rawData = readTicketCsv(UNRECOVERABLE_SAMPLE_CSV);
-    const result = await runADIWorkflow(rawData);
+    const result = await runADIWorkflow(rawData, NO_OVERRIDES_PATH);
 
     expect(result.rawData).toEqual(rawData);
     expect(result.validationPassed).toBe(false);
@@ -174,5 +202,9 @@ describe("LangGraph ADI engine", () => {
     expect(result.operatorDecisions).toHaveLength(2);
     expectOperatorDecision(result.operatorDecisions, 2, "rejected");
     expectOperatorDecision(result.operatorDecisions, 3, "rejected");
+
+    expect(result.finalOperatorDecisions).toHaveLength(2);
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 2, "rejected");
+    expectFinalOperatorDecision(result.finalOperatorDecisions, 3, "rejected");
   });
 });

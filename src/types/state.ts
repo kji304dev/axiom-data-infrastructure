@@ -46,6 +46,13 @@ export interface OperatorDecision {
   reason: string;
 }
 
+export interface FinalOperatorDecision {
+  row: number;
+  recommendedDecision: RecommendedDecision;
+  finalDecision: RecommendedDecision;
+  operatorNote: string;
+}
+
 /** Single row from an industrial ticket CSV before cleaning. */
 export type RawTicketRow = Record<string, string>;
 
@@ -67,6 +74,7 @@ export interface ADIState {
   repairs: Repair[];
   rowStatuses: RowStatus[];
   operatorDecisions: OperatorDecision[];
+  finalOperatorDecisions: FinalOperatorDecision[];
   currentStep: PipelineStep;
   healthScore?: number;
   validationPassed?: boolean;
@@ -107,6 +115,10 @@ export const ADIStateAnnotation = Annotation.Root({
     default: () => [],
   }),
   operatorDecisions: Annotation<OperatorDecision[]>({
+    reducer: (_left, right) => right,
+    default: () => [],
+  }),
+  finalOperatorDecisions: Annotation<FinalOperatorDecision[]>({
     reducer: (_left, right) => right,
     default: () => [],
   }),

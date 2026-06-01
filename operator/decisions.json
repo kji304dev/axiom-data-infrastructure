@@ -1,0 +1,9 @@
+{
+  "decisions": [
+    {
+      "row": 3,
+      "finalDecision": "approved_with_changes",
+      "operatorNote": "Confirmed missing customer and job site with dispatch team."
+    }
+  ]
+}

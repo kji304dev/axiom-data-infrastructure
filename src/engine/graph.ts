@@ -3,6 +3,10 @@ import { z } from "zod";
 import { cleanerNode } from "../agents/cleaner.js";
 import { graderNode } from "../agents/grader.js";
 import {
+  applyFinalOperatorDecisions,
+  readOperatorOverrides,
+} from "../io/operatorOverrides.js";
+import {
   ADIStateAnnotation,
   type ADIGraphState,
   type ADIStateUpdate,
@@ -110,15 +114,20 @@ export const adiGraph = buildADIGraph();
 
 export async function runADIWorkflow(
   rawData: ADIGraphState["rawData"],
+  operatorOverridesPath?: string,
 ): Promise<ADIGraphState> {
-  return adiGraph.invoke({
+  const result = await adiGraph.invoke({
     rawData,
     cleanedData: [],
     anomalies: [],
     repairs: [],
     rowStatuses: [],
     operatorDecisions: [],
+    finalOperatorDecisions: [],
     currentStep: "ingest",
     cleanAttempts: 0,
   });
+
+  const overrides = readOperatorOverrides(operatorOverridesPath);
+  return applyFinalOperatorDecisions(result, overrides);
 }

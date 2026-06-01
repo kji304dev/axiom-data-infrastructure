@@ -143,6 +143,25 @@ export function generateMarkdownReport(
     );
   }
 
+  lines.push("## Final Operator Decisions", "");
+
+  if (result.finalOperatorDecisions.length === 0) {
+    lines.push("_No final operator decisions recorded._", "");
+  } else {
+    lines.push(
+      buildTable(
+        ["row", "recommendedDecision", "finalDecision", "operatorNote"],
+        result.finalOperatorDecisions.map((decision) => [
+          String(decision.row),
+          formatCell(decision.recommendedDecision),
+          formatCell(decision.finalDecision),
+          formatCell(decision.operatorNote),
+        ]),
+      ),
+      "",
+    );
+  }
+
   lines.push("## Repairs", "");
 
   if (result.repairs.length === 0) {

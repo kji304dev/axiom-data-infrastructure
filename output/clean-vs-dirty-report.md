@@ -37,6 +37,15 @@
 | 4 | rejected | Row cannot be approved due to unrecoverable data quality issues: date: Invalid date format |
 | 5 | approved | Row passed with no repairs or anomalies: No repairs or anomalies |
 
+## Final Operator Decisions
+
+| row | recommendedDecision | finalDecision | operatorNote |
+| --- | --- | --- | --- |
+| 2 | approved | approved | (empty) |
+| 3 | needs_customer_input | approved_with_changes | Confirmed missing customer and job site with dispatch team. |
+| 4 | rejected | rejected | (empty) |
+| 5 | approved | approved | (empty) |
+
 ## Repairs
 
 | row | field | originalValue | cleanedValue | confidence | requiresReview | actionTaken |
