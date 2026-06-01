@@ -209,5 +209,12 @@
   "currentStep": "complete",
   "healthScore": 58,
   "validationPassed": false,
-  "cleanAttempts": 3
+  "cleanAttempts": 3,
+  "runMetadata": {
+    "runId": "20260601T204102Z_dirty_aec_ticket",
+    "inputFile": "/Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv",
+    "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test",
+    "generatedAt": "2026-06-01T20:41:02.978Z",
+    "engineVersion": "0.1.0"
+  }
 }

@@ -4,6 +4,7 @@ import { runADIWorkflow } from "./engine/graph.js";
 import { parseCliArgs, resolveOutputPaths } from "./io/cliArgs.js";
 import { readTicketCsv } from "./io/csvReader.js";
 import { generateMarkdownReport } from "./io/markdownReport.js";
+import { attachRunMetadata } from "./io/runMetadata.js";
 
 async function main(): Promise<void> {
   const { inputPath, outputDir } = parseCliArgs(process.argv.slice(2));
@@ -12,7 +13,11 @@ async function main(): Promise<void> {
     resolveOutputPaths(outputDir);
 
   const rawData = readTicketCsv(inputPath);
-  const result = await runADIWorkflow(rawData);
+  const workflowResult = await runADIWorkflow(rawData);
+  const result = attachRunMetadata(workflowResult, {
+    inputFile: resolvedInputPath,
+    outputDirectory: resolvedOutputDir,
+  });
 
   mkdirSync(resolvedOutputDir, { recursive: true });
   writeFileSync(jsonPath, `${JSON.stringify(result, null, 2)}\n`, "utf-8");

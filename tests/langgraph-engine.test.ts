@@ -4,6 +4,7 @@ import { runADIWorkflow } from "../src/engine/graph.js";
 import { getRowStatus } from "../src/agents/rowStatus.js";
 import { getOperatorDecision } from "../src/agents/operatorDecision.js";
 import { getFinalOperatorDecision } from "../src/io/operatorOverrides.js";
+import { attachRunMetadata } from "../src/io/runMetadata.js";
 import { readTicketCsv } from "../src/io/csvReader.js";
 import type { Anomaly, RecommendedDecision, RowStatusKind } from "../src/types/state.js";
 
@@ -12,6 +13,7 @@ const CLEAN_SAMPLE_CSV = resolve("samples/clean_aec_ticket.csv");
 const UNRECOVERABLE_SAMPLE_CSV = resolve("samples/unrecoverable_aec_ticket.csv");
 const NO_OVERRIDES_PATH = resolve("operator/no-overrides-for-tests.json");
 const OPERATOR_OVERRIDES_PATH = resolve("operator/decisions.json");
+const DEFAULT_OUTPUT_DIR = "output";
 
 function getUserFacingAnomalies(anomalies: Anomaly[]): Anomaly[] {
   return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
@@ -47,10 +49,41 @@ function expectFinalOperatorDecision(
   expect(decision?.finalDecision).toBe(expectedDecision);
 }
 
+async function runWorkflowWithMetadata(
+  inputCsv: string,
+  outputDir: string,
+  operatorOverridesPath?: string,
+) {
+  const resolvedInput = resolve(inputCsv);
+  const resolvedOutput = resolve(outputDir);
+  const rawData = readTicketCsv(inputCsv);
+  const workflowResult = await runADIWorkflow(rawData, operatorOverridesPath);
+
+  return attachRunMetadata(workflowResult, {
+    inputFile: resolvedInput,
+    outputDirectory: resolvedOutput,
+  });
+}
+
+function expectRunMetadata(
+  result: { runMetadata?: { inputFile: string; engineVersion: string } },
+  inputFile: string,
+): void {
+  expect(result.runMetadata).toBeDefined();
+  expect(result.runMetadata?.inputFile).toBe(resolve(inputFile));
+  expect(result.runMetadata?.engineVersion).toBe("0.1.0");
+}
+
 describe("LangGraph ADI engine", () => {
   it("cleans the dirty AEC ticket sample while preserving raw data", async () => {
     const rawData = readTicketCsv(DIRTY_SAMPLE_CSV);
-    const result = await runADIWorkflow(rawData, OPERATOR_OVERRIDES_PATH);
+    const result = await runWorkflowWithMetadata(
+      DIRTY_SAMPLE_CSV,
+      DEFAULT_OUTPUT_DIR,
+      OPERATOR_OVERRIDES_PATH,
+    );
+
+    expectRunMetadata(result, DIRTY_SAMPLE_CSV);
 
     const ticket1002Raw = result.rawData.find(
       (row) => row.ticket_id === "1002",
@@ -132,8 +165,13 @@ describe("LangGraph ADI engine", () => {
   });
 
   it("passes validation for the clean AEC ticket sample", async () => {
-    const rawData = readTicketCsv(CLEAN_SAMPLE_CSV);
-    const result = await runADIWorkflow(rawData, NO_OVERRIDES_PATH);
+    const result = await runWorkflowWithMetadata(
+      CLEAN_SAMPLE_CSV,
+      DEFAULT_OUTPUT_DIR,
+      NO_OVERRIDES_PATH,
+    );
+
+    expectRunMetadata(result, CLEAN_SAMPLE_CSV);
 
     expect(result.rawData).toHaveLength(2);
     expect(result.cleanedData).toHaveLength(2);
@@ -157,7 +195,13 @@ describe("LangGraph ADI engine", () => {
 
   it("handles unrecoverable AEC ticket data without throwing", async () => {
     const rawData = readTicketCsv(UNRECOVERABLE_SAMPLE_CSV);
-    const result = await runADIWorkflow(rawData, NO_OVERRIDES_PATH);
+    const result = await runWorkflowWithMetadata(
+      UNRECOVERABLE_SAMPLE_CSV,
+      DEFAULT_OUTPUT_DIR,
+      NO_OVERRIDES_PATH,
+    );
+
+    expectRunMetadata(result, UNRECOVERABLE_SAMPLE_CSV);
 
     expect(result.rawData).toEqual(rawData);
     expect(result.validationPassed).toBe(false);

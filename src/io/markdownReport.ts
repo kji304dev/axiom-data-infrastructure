@@ -28,6 +28,25 @@ function formatDeduction(amount: number): string {
   return amount === 0 ? "0" : `−${amount}`;
 }
 
+function buildRunMetadataSection(result: ADIGraphState): string[] {
+  const metadata = result.runMetadata;
+
+  if (!metadata) {
+    return [];
+  }
+
+  return [
+    "## Run Metadata",
+    "",
+    `- **Run ID:** ${escapeTableCell(metadata.runId)}`,
+    `- **Input file:** ${escapeTableCell(metadata.inputFile)}`,
+    `- **Output directory:** ${escapeTableCell(metadata.outputDirectory)}`,
+    `- **Generated at:** ${escapeTableCell(metadata.generatedAt)}`,
+    `- **Engine version:** ${escapeTableCell(metadata.engineVersion)}`,
+    "",
+  ];
+}
+
 function buildHealthScoreExplanationSection(result: ADIGraphState): string[] {
   const breakdown = buildHealthScoreBreakdown(result);
 
@@ -94,6 +113,7 @@ export function generateMarkdownReport(
   const lines: string[] = [
     "# ADI Clean vs Dirty Report",
     "",
+    ...buildRunMetadataSection(result),
     "## Summary",
     "",
     `- **Input file:** ${escapeTableCell(inputFilePath)}`,

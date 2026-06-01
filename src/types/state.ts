@@ -53,6 +53,14 @@ export interface FinalOperatorDecision {
   operatorNote: string;
 }
 
+export interface RunMetadata {
+  runId: string;
+  inputFile: string;
+  outputDirectory: string;
+  generatedAt: string;
+  engineVersion: string;
+}
+
 /** Single row from an industrial ticket CSV before cleaning. */
 export type RawTicketRow = Record<string, string>;
 
@@ -75,6 +83,7 @@ export interface ADIState {
   rowStatuses: RowStatus[];
   operatorDecisions: OperatorDecision[];
   finalOperatorDecisions: FinalOperatorDecision[];
+  runMetadata?: RunMetadata;
   currentStep: PipelineStep;
   healthScore?: number;
   validationPassed?: boolean;
@@ -122,6 +131,7 @@ export const ADIStateAnnotation = Annotation.Root({
     reducer: (_left, right) => right,
     default: () => [],
   }),
+  runMetadata: Annotation<RunMetadata | undefined>,
   currentStep: Annotation<PipelineStep>,
   healthScore: Annotation<number | undefined>,
   validationPassed: Annotation<boolean | undefined>,
