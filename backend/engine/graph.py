@@ -1,33 +1,48 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from backend.agents.analyzer import analyze_records
 from backend.agents.auditor import audit_records
 from backend.agents.transformer import transform_records
-from backend.core.config import MAX_RETRIES, configure_logging
+from backend.core.config import MAX_RETRIES
+from backend.core.logging import configure_logging, log_workflow_transition
 from backend.core.schemas import FailedRecord, GradeAECResponse, ProcessingEvent
-from backend.engine.state import EngineState
 from backend.engine.scoring import calculate_health_score
+from backend.engine.state import EngineState
 from backend.engine.validation import deterministic_final_validation
 
 configure_logging()
-logger = logging.getLogger("adi.backend.engine")
+
+
+def _workflow_context(state: EngineState) -> dict[str, Any]:
+    return {
+        "retry_count": state.retry_count,
+        "record_count": len(state.raw_records),
+        "anomaly_count": len(state.anomalies),
+        "failed_record_count": len(state.failed_records),
+    }
 
 
 def _log_transition(
-    node: str, status: str, message: str, retry_count: int
+    state: EngineState,
+    node: str,
+    status: str,
+    message: str,
+    *,
+    event: str = "transition",
+    validation_passed: bool | None = None,
 ) -> ProcessingEvent:
-    payload = {
-        "node": node,
-        "status": status,
-        "message": message,
-        "retry_count": retry_count,
-    }
-    logger.info("state_transition", extra={"transition": payload})
+    log_workflow_transition(
+        node=node,  # type: ignore[arg-type]
+        status=status,  # type: ignore[arg-type]
+        message=message,
+        event=event,  # type: ignore[arg-type]
+        validation_passed=validation_passed,
+        **_workflow_context(state),
+    )
     return ProcessingEvent(
-        node=node, status=status, message=message, retry_count=retry_count
+        node=node, status=status, message=message, retry_count=state.retry_count
     )
 
 
@@ -79,25 +94,27 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
     state = EngineState(raw_records=records)
 
     state.processing_history.append(
-        _log_transition("analyzer", "start", "Running anomaly analysis", state.retry_count)
+        _log_transition(
+            state, "analyzer", "start", "Running anomaly analysis"
+        )
     )
     state.anomalies = analyze_records(state.raw_records)
     state.processing_history.append(
         _log_transition(
+            state,
             "analyzer",
             "success",
             f"Analyzer detected {len(state.anomalies)} anomalies",
-            state.retry_count,
         )
     )
 
     while True:
         state.processing_history.append(
             _log_transition(
+                state,
                 "transformer",
                 "start",
                 "Applying deterministic transformations",
-                state.retry_count,
             )
         )
         all_cleaned, new_repairs = transform_records(
@@ -108,16 +125,16 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         state.cleaned_records = _active_cleaned_records(all_cleaned, skip_rows)
         state.processing_history.append(
             _log_transition(
+                state,
                 "transformer",
                 "success",
                 f"Transformer produced {len(state.cleaned_records)} active cleaned records",
-                state.retry_count,
             )
         )
 
         state.processing_history.append(
             _log_transition(
-                "auditor", "start", "Auditing transformed output", state.retry_count
+                state, "auditor", "start", "Auditing transformed output"
             )
         )
         passed_audit, audit_failures = audit_records(all_cleaned, skip_rows=skip_rows)
@@ -127,10 +144,14 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
                 state.retry_count += 1
                 state.processing_history.append(
                     _log_transition(
+                        state,
                         "auditor",
                         "retry",
-                        f"Audit failed; correction required: {state.correction_instruction}",
-                        state.retry_count,
+                        (
+                            "Audit failed; routing to transformer for self-correction "
+                            f"({len(audit_failures)} unresolved row(s))"
+                        ),
+                        event="retry_routing",
                     )
                 )
                 continue
@@ -138,22 +159,20 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
             _dead_letter_unresolved_rows(state, audit_failures)
             state.processing_history.append(
                 _log_transition(
+                    state,
                     "auditor",
                     "failed",
                     (
                         "Dead-lettered "
-                        f"{len(audit_failures)} unresolved record(s) after max retries: "
-                        f"{state.correction_instruction}"
+                        f"{len(audit_failures)} unresolved record(s) after max retries"
                     ),
-                    state.retry_count,
+                    event="dead_letter",
                 )
             )
         else:
             state.correction_instruction = None
             state.processing_history.append(
-                _log_transition(
-                    "auditor", "success", "Audit passed", state.retry_count
-                )
+                _log_transition(state, "auditor", "success", "Audit passed")
             )
 
         skip_rows = _dead_lettered_rows(state)
@@ -161,10 +180,10 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
 
         state.processing_history.append(
             _log_transition(
+                state,
                 "validator",
                 "start",
                 "Running deterministic final validation",
-                state.retry_count,
             )
         )
 
@@ -173,10 +192,10 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
             validation_errors: dict[int, str] = {}
             state.processing_history.append(
                 _log_transition(
+                    state,
                     "validator",
                     "failed",
                     "No active cleaned records available for final validation",
-                    state.retry_count,
                 )
             )
         else:
@@ -187,7 +206,7 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         if validation_passed:
             state.processing_history.append(
                 _log_transition(
-                    "validator", "success", "Final validation passed", state.retry_count
+                    state, "validator", "success", "Final validation passed"
                 )
             )
             break
@@ -197,13 +216,14 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
             state.retry_count += 1
             state.processing_history.append(
                 _log_transition(
+                    state,
                     "validator",
                     "retry",
                     (
-                        "Final validation failed; correction required: "
-                        f"{state.correction_instruction}"
+                        "Final validation failed; routing to transformer for "
+                        f"self-correction ({len(validation_errors)} unresolved row(s))"
                     ),
-                    state.retry_count,
+                    event="retry_routing",
                 )
             )
             continue
@@ -211,14 +231,14 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         _dead_letter_unresolved_rows(state, validation_errors)
         state.processing_history.append(
             _log_transition(
+                state,
                 "validator",
                 "failed",
                 (
                     "Dead-lettered "
-                    f"{len(validation_errors)} unresolved record(s) after max retries: "
-                    f"{state.correction_instruction}"
+                    f"{len(validation_errors)} unresolved record(s) after max retries"
                 ),
-                state.retry_count,
+                event="dead_letter",
             )
         )
         break
@@ -231,7 +251,14 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
     )
 
     state.processing_history.append(
-        _log_transition("complete", "success", "Workflow completed", state.retry_count)
+        _log_transition(
+            state,
+            "complete",
+            "success",
+            "Workflow completed",
+            event="complete",
+            validation_passed=state.validation_passed,
+        )
     )
     return GradeAECResponse(
         raw_records=state.raw_records,

@@ -24,7 +24,10 @@ def _auditor_retry_followed_by_transformer_retry(history) -> bool:
 def _correction_instruction_captured(history, final_instruction: str | None) -> bool:
     if final_instruction:
         return True
-    return any("correction required" in event.message for event in history)
+    return any(
+        "self-correction" in event.message or "correction required" in event.message
+        for event in history
+    )
 
 
 def _expected_final_score(explanation) -> float:
