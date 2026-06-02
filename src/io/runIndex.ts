@@ -14,6 +14,7 @@ export interface RunIndexEntry {
   validationPassed: boolean;
   generatedAt: string;
   engineVersion: string;
+  profile: string;
 }
 
 export interface RunIndex {
@@ -29,6 +30,7 @@ const runIndexEntrySchema = z.object({
   validationPassed: z.boolean(),
   generatedAt: z.string(),
   engineVersion: z.string(),
+  profile: z.string().default("aec"),
 });
 
 const runIndexSchema = z.object({
@@ -51,6 +53,7 @@ export function buildRunIndexEntry(manifest: RunManifest): RunIndexEntry {
     validationPassed: manifest.validationPassed,
     generatedAt: manifest.generatedAt,
     engineVersion: manifest.engineVersion,
+    profile: manifest.profile,
   };
 }
 

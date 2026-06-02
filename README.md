@@ -29,15 +29,18 @@ Automatic output directory (`output/runs/<runId>/`):
 
 ```bash
 npm run dev -- samples/dirty_aec_ticket.csv
+npm run dev -- samples/dirty_aec_ticket.csv --profile aec
 ```
 
 Explicit output directory:
 
 ```bash
 npm run dev -- samples/dirty_aec_ticket.csv --output-dir output/runs/dirty-aec-test
+npm run dev -- samples/dirty_aec_ticket.csv --profile aec --output-dir output/runs/dirty-aec-test
 ```
 
 If no input path is provided, it defaults to `samples/dirty_aec_ticket.csv`.
+If `--profile` is omitted, it defaults to `aec`.
 
 When `--output-dir` is omitted, the engine creates a unique run folder under `output/runs/` using the same `runId` recorded in run metadata.
 

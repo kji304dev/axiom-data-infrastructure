@@ -44,6 +44,7 @@ function buildRunMetadataSection(result: ADIGraphState): string[] {
     `- **Output directory:** ${escapeTableCell(metadata.outputDirectory)}`,
     `- **Generated at:** ${escapeTableCell(metadata.generatedAt)}`,
     `- **Engine version:** ${escapeTableCell(metadata.engineVersion)}`,
+    `- **Profile:** ${escapeTableCell(metadata.profile)}`,
     "",
   ];
 }

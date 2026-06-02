@@ -12,6 +12,7 @@ export interface RunManifest {
   validationPassed: boolean;
   generatedAt: string;
   engineVersion: string;
+  profile: string;
 }
 
 export interface BuildRunManifestOptions {
@@ -37,6 +38,7 @@ export function buildRunManifest(
     validationPassed: options.validationPassed ?? false,
     generatedAt: runMetadata.generatedAt,
     engineVersion: runMetadata.engineVersion,
+    profile: runMetadata.profile,
   };
 }
 

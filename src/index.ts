@@ -14,7 +14,7 @@ import { updateRunIndex } from "./io/runIndex.js";
 import { summarizeAnomalies } from "./io/anomalies.js";
 
 async function main(): Promise<void> {
-  const { inputPath, outputDir: explicitOutputDir } = parseCliArgs(
+  const { inputPath, outputDir: explicitOutputDir, profile } = parseCliArgs(
     process.argv.slice(2),
   );
   const resolvedInputPath = resolve(inputPath);
@@ -35,6 +35,7 @@ async function main(): Promise<void> {
     inputFile: resolvedInputPath,
     outputDirectory: resolvedOutputDir,
     generatedAt,
+    profile,
   });
 
   const { jsonPath, markdownPath } = resolveOutputPaths(resolvedOutputDir);
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
   const anomalySummary = summarizeAnomalies(result.anomalies);
 
   console.log(`Input file: ${resolvedInputPath}`);
+  console.log(`Profile: ${profile}`);
   if (isAutoOutputDir) {
     console.log(`Auto-generated output directory: ${resolvedOutputDir}`);
   } else {

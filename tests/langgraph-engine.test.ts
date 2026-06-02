@@ -59,6 +59,7 @@ async function runWorkflowWithMetadata(
   return attachRunMetadata(workflowResult, {
     inputFile: resolvedInput,
     outputDirectory: resolvedOutput,
+    profile: "aec",
   });
 }
 

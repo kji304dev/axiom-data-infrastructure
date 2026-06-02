@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { basename, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ADIGraphState, RunMetadata } from "../types/state.js";
+import { DEFAULT_PROFILE, type DataProfile } from "./profiles.js";
 
 const PACKAGE_JSON_PATH = resolve(
   fileURLToPath(new URL("../../package.json", import.meta.url)),
@@ -10,6 +11,7 @@ const PACKAGE_JSON_PATH = resolve(
 export interface CreateRunMetadataOptions {
   inputFile: string;
   outputDirectory: string;
+  profile?: DataProfile;
   generatedAt?: Date;
 }
 
@@ -55,6 +57,7 @@ export function createRunMetadata(
     outputDirectory: options.outputDirectory,
     generatedAt: generatedAt.toISOString(),
     engineVersion: readEngineVersion(),
+    profile: options.profile ?? DEFAULT_PROFILE,
   };
 }
 

@@ -41,5 +41,6 @@ describe("runMetadata", () => {
     expect(metadata.engineVersion).toBe("0.1.0");
     expect(metadata.generatedAt).toBe("2026-06-01T16:18:47.000Z");
     expect(metadata.runId).toBe("20260601T161847Z_dirty_aec_ticket");
+    expect(metadata.profile).toBe("aec");
   });
 });

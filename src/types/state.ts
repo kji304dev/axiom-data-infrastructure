@@ -59,6 +59,7 @@ export interface RunMetadata {
   outputDirectory: string;
   generatedAt: string;
   engineVersion: string;
+  profile: string;
 }
 
 /** Single row from an industrial ticket CSV before cleaning. */

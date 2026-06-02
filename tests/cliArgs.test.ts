@@ -8,12 +8,14 @@ import {
   resolveOutputPaths,
   resolveRunOutputDirectory,
 } from "../src/io/cliArgs.js";
+import { DEFAULT_PROFILE } from "../src/io/profiles.js";
 
 describe("parseCliArgs", () => {
   it("uses defaults when no arguments are provided", () => {
     expect(parseCliArgs([])).toEqual({
       inputPath: DEFAULT_INPUT,
       outputDir: undefined,
+      profile: DEFAULT_PROFILE,
     });
   });
 
@@ -21,7 +23,27 @@ describe("parseCliArgs", () => {
     expect(parseCliArgs(["samples/dirty_aec_ticket.csv"])).toEqual({
       inputPath: "samples/dirty_aec_ticket.csv",
       outputDir: undefined,
+      profile: DEFAULT_PROFILE,
     });
+  });
+
+  it("parses explicit --profile aec", () => {
+    expect(
+      parseCliArgs(["samples/dirty_aec_ticket.csv", "--profile", "aec"]),
+    ).toEqual({
+      inputPath: "samples/dirty_aec_ticket.csv",
+      outputDir: undefined,
+      profile: "aec",
+    });
+  });
+
+  it("throws for unsupported profile values", () => {
+    expect(() =>
+      parseCliArgs(["samples/dirty_aec_ticket.csv", "--profile", "finance"]),
+    ).toThrow("Unsupported profile: finance");
+    expect(() =>
+      parseCliArgs(["samples/dirty_aec_ticket.csv", "--profile", "finance"]),
+    ).toThrow("Supported profiles: aec");
   });
 
   it("parses input path and --output-dir flag", () => {
@@ -34,6 +56,7 @@ describe("parseCliArgs", () => {
     ).toEqual({
       inputPath: "samples/dirty_aec_ticket.csv",
       outputDir: "output/runs/dirty-aec-test",
+      profile: DEFAULT_PROFILE,
     });
   });
 
@@ -41,6 +64,12 @@ describe("parseCliArgs", () => {
     expect(() =>
       parseCliArgs(["samples/dirty_aec_ticket.csv", "--output-dir"]),
     ).toThrow("--output-dir requires a path argument");
+  });
+
+  it("throws when --profile is missing a value", () => {
+    expect(() =>
+      parseCliArgs(["samples/dirty_aec_ticket.csv", "--profile"]),
+    ).toThrow("--profile requires a profile name");
   });
 
   it("throws on unknown flags", () => {

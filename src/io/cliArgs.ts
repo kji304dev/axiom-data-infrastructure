@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { buildRunId } from "./runMetadata.js";
+import { DEFAULT_PROFILE, parseProfile, type DataProfile } from "./profiles.js";
 
 export const DEFAULT_INPUT = "samples/dirty_aec_ticket.csv";
 export const AUTO_RUNS_BASE_DIR = "output/runs";
@@ -7,6 +8,7 @@ export const AUTO_RUNS_BASE_DIR = "output/runs";
 export interface CliArgs {
   inputPath: string;
   outputDir?: string;
+  profile: DataProfile;
 }
 
 export interface OutputPaths {
@@ -26,6 +28,7 @@ export interface ResolvedRunOutput {
 export function parseCliArgs(argv: string[]): CliArgs {
   let inputPath: string | undefined;
   let outputDir: string | undefined;
+  let profile: DataProfile = DEFAULT_PROFILE;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -36,6 +39,16 @@ export function parseCliArgs(argv: string[]): CliArgs {
         throw new Error("--output-dir requires a path argument");
       }
       outputDir = outputDirValue;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--profile") {
+      const profileValue = argv[index + 1];
+      if (!profileValue || profileValue.startsWith("--")) {
+        throw new Error("--profile requires a profile name");
+      }
+      profile = parseProfile(profileValue);
       index += 1;
       continue;
     }
@@ -55,6 +68,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
   return {
     inputPath: inputPath ?? DEFAULT_INPUT,
     outputDir,
+    profile,
   };
 }
 

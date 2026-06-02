@@ -42,6 +42,7 @@ describe("runIndex", () => {
       validationPassed: false,
       generatedAt: "2026-06-01T16:18:47.000Z",
       engineVersion: "0.1.0",
+      profile: "aec",
     });
   });
 
