@@ -205,7 +205,7 @@ A production-oriented Python backend lives under `backend/` and runs alongside t
 
 | Layer | Path | Role |
 |-------|------|------|
-| API | `backend/api/` | FastAPI app and routes (`POST /grade/aec`) |
+| API | `backend/api/` | FastAPI app and routes (`POST /grade/aec`, `POST /grade/aec/upload`) |
 | Core | `backend/core/` | Pydantic schemas, config, structured logging |
 | Engine | `backend/engine/` | State-machine orchestration, validation, scoring |
 | Agents | `backend/agents/` | Analyzer, Transformer, Auditor (isolated modules) |
@@ -325,7 +325,32 @@ Example response shape:
 }
 ```
 
-Unrecoverable records follow the same shape but populate `failed_records`, set `validation_passed` to `false`, increment `retry_count`, and lower `health_score`.
+Unrecoverable records follow the same shape but populate `failed_records`, set `validation_passed` to `false`, increment `retry_count`, and lower `health_score`. Validator `processing_history` entries use wording such as `Final validation failed due to dead-lettered records` rather than `Final validation passed` when dead-lettered rows are present.
+
+### CSV upload endpoint
+
+**`POST /grade/aec/upload`**
+
+Accepts `multipart/form-data` with a single file field named `file`. The uploaded file must have a `.csv` extension, contain UTF-8 CSV data, and include a header row with AEC columns (`ticket_id`, `date`, `customer`, `material`, `quantity`, `unit`, `job_site`).
+
+The upload route parses CSV rows and passes them to the same `run_aec_grading()` engine used by `POST /grade/aec`. No files are persisted.
+
+Example request using the repository dirty sample:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/grade/aec/upload" \
+  -F "file=@samples/dirty_aec_ticket.csv"
+```
+
+For a dirty batch such as `samples/dirty_aec_ticket.csv`:
+
+- Repairable rows (for example `05/02/26`, negative quantity) are normalized in `cleaned_records`
+- Valid ISO dates such as `2026-05-01` and `2026-05-04` remain unchanged
+- Unrecoverable rows (for example `bad-date`) are dead-lettered into `failed_records` after retry limits are exhausted
+- The response sets `validation_passed` to `false` whenever `failed_records` is not empty
+- `failed_records` preserves the original raw row plus a row-level failure reason
+
+Upload validation errors return HTTP 400 with messages such as `File must be present`, `Filename must end with .csv`, or `File must not be empty`.
 
 ### Note
 

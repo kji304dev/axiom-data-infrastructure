@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from backend.api.app import app
@@ -12,6 +14,8 @@ from backend.engine.scoring import (
 
 client = TestClient(app)
 
+DIRTY_SAMPLE_CSV = Path("samples/dirty_aec_ticket.csv").read_text(encoding="utf-8")
+
 VALID_CSV = """ticket_id,date,customer,material,quantity,unit,job_site
 1002,05/02/26,Acme Builders,Gravel,-4,tons,North Yard
 """
@@ -20,11 +24,13 @@ UNRECOVERABLE_CSV = """ticket_id,date,customer,material,quantity,unit,job_site
 ,bad-date,,Concrete,not-a-number,,
 """
 
-MIXED_CSV = """ticket_id,date,customer,material,quantity,unit,job_site
-1001,2026-05-01,Acme Builders,Concrete,12,yd3,North Yard
-1003,bad-date,River Works,Asphalt,8,tons,Lot 7
-1004,2026-05-04,Delta Construction,Sand,15,tons,South Yard
-"""
+
+def _validator_messages(payload: dict) -> list[str]:
+    return [
+        event["message"]
+        for event in payload["processing_history"]
+        if event["node"] == "validator"
+    ]
 
 
 def _expected_final_score(explanation: dict) -> float:
@@ -107,11 +113,7 @@ def test_grade_aec_endpoint_unrecoverable() -> None:
         "Dead-lettered" in event["message"]
         for event in payload["processing_history"]
     )
-    validator_messages = [
-        event["message"]
-        for event in payload["processing_history"]
-        if event["node"] == "validator"
-    ]
+    validator_messages = _validator_messages(payload)
     assert "Final validation passed" not in validator_messages
     assert any(
         "dead-lettered records" in message
@@ -136,6 +138,56 @@ def test_grade_aec_upload_success() -> None:
     assert payload["failed_records"] == []
     assert "health_score_explanation" in payload
     assert "processing_history" in payload
+
+
+def test_grade_aec_upload_dirty_csv_with_failed_records() -> None:
+    response = client.post(
+        "/grade/aec/upload",
+        files={"file": ("dirty_aec_ticket.csv", DIRTY_SAMPLE_CSV, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["validation_passed"] is False
+    assert len(payload["failed_records"]) == 1
+    assert payload["failed_records"][0]["record"]["ticket_id"] == "1003"
+    assert payload["failed_records"][0]["record"]["date"] == "bad-date"
+    assert len(payload["cleaned_records"]) == 3
+
+    cleaned_dates = [record["date"] for record in payload["cleaned_records"]]
+    assert "2026-05-01" in cleaned_dates
+    assert "2026-05-04" in cleaned_dates
+    assert "1970-01-01" not in cleaned_dates
+    assert all(
+        repair["cleaned_value"] != "1970-01-01" for repair in payload["repairs"]
+    )
+
+    validator_messages = _validator_messages(payload)
+    assert "Final validation passed" not in validator_messages
+    assert any("dead-lettered records" in message for message in validator_messages)
+
+
+def test_grade_aec_upload_reuses_same_grading_engine_as_json() -> None:
+    record = {
+        "ticket_id": "1002",
+        "date": "05/02/26",
+        "customer": "Acme Builders",
+        "material": "Gravel",
+        "quantity": "-4",
+        "unit": "tons",
+        "job_site": "North Yard",
+    }
+    json_response = client.post("/grade/aec", json={"records": [record]})
+    upload_response = client.post(
+        "/grade/aec/upload",
+        files={"file": ("repairable.csv", VALID_CSV, "text/csv")},
+    )
+
+    assert json_response.status_code == 200
+    assert upload_response.status_code == 200
+    assert upload_response.json()["cleaned_records"] == json_response.json()["cleaned_records"]
+    assert upload_response.json()["validation_passed"] == json_response.json()["validation_passed"]
+    assert upload_response.json()["health_score"] == json_response.json()["health_score"]
 
 
 def test_grade_aec_upload_missing_file() -> None:
@@ -181,43 +233,7 @@ def test_grade_aec_upload_unrecoverable_csv() -> None:
     assert all(
         repair["cleaned_value"] != "1970-01-01" for repair in payload["repairs"]
     )
-    validator_messages = [
-        event["message"]
-        for event in payload["processing_history"]
-        if event["node"] == "validator"
-    ]
-    assert "Final validation passed" not in validator_messages
-    assert any(
-        "dead-lettered records" in message
-        or "failed records" in message.lower()
-        or "no active cleaned records" in message.lower()
-        for message in validator_messages
-    )
-
-
-def test_grade_aec_upload_preserves_valid_iso_dates_in_mixed_csv() -> None:
-    response = client.post(
-        "/grade/aec/upload",
-        files={"file": ("dirty.csv", MIXED_CSV, "text/csv")},
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["validation_passed"] is False
-    assert len(payload["failed_records"]) == 1
-    assert payload["failed_records"][0]["record"]["date"] == "bad-date"
-    cleaned_dates = [record["date"] for record in payload["cleaned_records"]]
-    assert "2026-05-01" in cleaned_dates
-    assert "2026-05-04" in cleaned_dates
-    assert "1970-01-01" not in cleaned_dates
-    assert all(
-        repair["cleaned_value"] != "1970-01-01" for repair in payload["repairs"]
-    )
-    validator_messages = [
-        event["message"]
-        for event in payload["processing_history"]
-        if event["node"] == "validator"
-    ]
+    validator_messages = _validator_messages(payload)
     assert "Final validation passed" not in validator_messages
     assert any(
         "dead-lettered records" in message
