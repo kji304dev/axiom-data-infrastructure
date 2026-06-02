@@ -199,13 +199,133 @@ If required canonical fields cannot be mapped, ADI fails before grading with a c
 
 ## Python FastAPI Backend
 
-A production-oriented Python backend now exists under `backend/` and runs alongside the TypeScript engine.
+A production-oriented Python backend lives under `backend/` and runs alongside the TypeScript engine. It exposes a JSON API for grading AEC ticket records with explainable, portfolio-ready output.
 
-- API: `backend/api/` exposes `POST /grade/aec` via FastAPI.
-- State machine: `backend/engine/graph.py` orchestrates Analyzer -> Transformer -> Auditor with retry/dead-letter routing.
-- Strict contracts: `backend/core/schemas.py` uses Pydantic v2 models for request/response and engine artifacts.
-- Deterministic guardrail: `backend/engine/validation.py` enforces exact required AEC fields before output is accepted.
-- Tests: `backend/tests/` covers clean, repairable, unrecoverable, and retry/dead-letter behaviors plus API checks.
+### Architecture
+
+| Layer | Path | Role |
+|-------|------|------|
+| API | `backend/api/` | FastAPI app and routes (`POST /grade/aec`) |
+| Core | `backend/core/` | Pydantic schemas, config, structured logging |
+| Engine | `backend/engine/` | State-machine orchestration, validation, scoring |
+| Agents | `backend/agents/` | Analyzer, Transformer, Auditor (isolated modules) |
+
+The backend demonstrates:
+
+- **Pydantic validation** — strict request/response contracts
+- **State-machine processing** — explicit workflow state and `processing_history`
+- **Self-correction loop** — Auditor/Validator failures route back to Transformer (max 2 retries)
+- **Dead-letter handling** — unresolved records captured in `failed_records` with reasons
+- **Deterministic final validation** — required AEC fields enforced before success
+- **Structured logging** — JSON workflow transition logs (no raw customer values)
+
+### Setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+```
+
+### Test
+
+```bash
+pytest backend/tests
+```
+
+### Run locally
+
+```bash
+uvicorn backend.api.app:app --reload --port 8000
+```
+
+### Endpoint
+
+**`POST /grade/aec`**
+
+Accepts a JSON body with a `records` array. Each record should include AEC fields: `ticket_id`, `date`, `customer`, `material`, `quantity`, `unit`, `job_site`.
+
+Example request (repairable record with slash date and negative quantity):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/grade/aec" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "records": [
+      {
+        "ticket_id": "1002",
+        "date": "05/02/26",
+        "customer": "Acme Builders",
+        "material": "Gravel",
+        "quantity": -4,
+        "unit": "tons",
+        "job_site": "North Yard"
+      }
+    ]
+  }'
+```
+
+Example response shape:
+
+```json
+{
+  "cleaned_records": [
+    {
+      "ticket_id": "1002",
+      "date": "2026-05-02",
+      "customer": "Acme Builders",
+      "material": "Gravel",
+      "quantity": 4.0,
+      "unit": "tons",
+      "job_site": "North Yard"
+    }
+  ],
+  "repairs": [
+    {
+      "row": 1,
+      "field": "date",
+      "original_value": "05/02/26",
+      "cleaned_value": "2026-05-02",
+      "action_taken": "Normalized date format to YYYY-MM-DD",
+      "requires_review": false,
+      "confidence": 0.95
+    },
+    {
+      "row": 1,
+      "field": "quantity",
+      "original_value": "-4",
+      "cleaned_value": "4",
+      "action_taken": "Converted negative quantity to absolute value",
+      "requires_review": true,
+      "confidence": 0.75
+    }
+  ],
+  "anomalies": [],
+  "failed_records": [],
+  "processing_history": [
+    { "node": "analyzer", "status": "start", "message": "Running anomaly analysis", "retry_count": 0 },
+    { "node": "analyzer", "status": "success", "message": "Analyzer detected 0 anomalies", "retry_count": 0 },
+    { "node": "transformer", "status": "success", "message": "Transformer produced 1 active cleaned records", "retry_count": 0 },
+    { "node": "auditor", "status": "success", "message": "Audit passed", "retry_count": 0 },
+    { "node": "validator", "status": "success", "message": "Final validation passed", "retry_count": 0 },
+    { "node": "complete", "status": "success", "message": "Workflow completed", "retry_count": 0 }
+  ],
+  "retry_count": 0,
+  "health_score": 93.0,
+  "health_score_explanation": {
+    "starting_score": 100,
+    "high_severity_anomaly_count": 0,
+    "medium_severity_anomaly_count": 0,
+    "review_required_repair_count": 1,
+    "confident_repair_count": 1,
+    "failed_record_count": 0,
+    "final_score": 93.0
+  },
+  "validation_passed": true
+}
+```
+
+Unrecoverable records follow the same shape but populate `failed_records`, set `validation_passed` to `false`, increment `retry_count`, and lower `health_score`.
 
 ### Note
 
