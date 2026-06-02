@@ -50,6 +50,40 @@ describe("readTicketCsv input validation", () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it("fails when headers are completely unmappable", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "adi-unmappable-headers-"));
+    const csvPath = join(tempDir, "unmappable.csv");
+    writeFileSync(
+      csvPath,
+      "foo,bar,baz\nvalue1,value2,value3\n",
+      "utf-8",
+    );
+
+    expect(() => readTicketCsv(csvPath)).toThrow(InputValidationError);
+    expect(() => readTicketCsv(csvPath)).toThrow(
+      "Error: Input CSV is missing required mappable fields: ticket_id, date, customer, material, quantity, unit, job_site",
+    );
+
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("fails when the CSV has headers but no data rows", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "adi-headers-only-"));
+    const csvPath = join(tempDir, "headers-only.csv");
+    writeFileSync(
+      csvPath,
+      "ticket_id,date,customer,material,quantity,unit,job_site\n",
+      "utf-8",
+    );
+
+    expect(() => readTicketCsv(csvPath)).toThrow(InputValidationError);
+    expect(() => readTicketCsv(csvPath)).toThrow(
+      `Error: Input CSV is empty: ${resolve(csvPath)}`,
+    );
+
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
   it("reads valid AEC ticket CSV files with canonical headers", () => {
     const rows = readTicketCsv("samples/dirty_aec_ticket.csv");
 
