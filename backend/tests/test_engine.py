@@ -49,6 +49,23 @@ def _assert_explanation_matches_score(result) -> None:
     assert explanation.final_score == _expected_final_score(explanation)
 
 
+def _assert_failed_record_validation_history(result) -> None:
+    validator_messages = [
+        event.message
+        for event in result.processing_history
+        if event.node == "validator"
+    ]
+    assert result.validation_passed is False
+    assert len(result.failed_records) > 0
+    assert "Final validation passed" not in validator_messages
+    assert any(
+        "dead-lettered records" in message
+        or "failed records" in message.lower()
+        or "no active cleaned records" in message.lower()
+        for message in validator_messages
+    )
+
+
 def test_clean_record_health_score_is_100() -> None:
     result = run_aec_grading(
         [
@@ -72,6 +89,136 @@ def test_clean_record_health_score_is_100() -> None:
     assert result.health_score_explanation.confident_repair_count == 0
     assert result.health_score_explanation.review_required_repair_count == 0
     assert result.health_score_explanation.failed_record_count == 0
+    _assert_explanation_matches_score(result)
+
+
+def test_valid_iso_dates_remain_unchanged() -> None:
+    result = run_aec_grading(
+        [
+            {
+                "ticket_id": "1001",
+                "date": "2026-05-01",
+                "customer": "Acme Builders",
+                "material": "Concrete",
+                "quantity": 12,
+                "unit": "yd3",
+                "job_site": "North Yard",
+            },
+            {
+                "ticket_id": "1004",
+                "date": "2026-05-04",
+                "customer": "Delta Construction",
+                "material": "Sand",
+                "quantity": 15,
+                "unit": "tons",
+                "job_site": "South Yard",
+            },
+        ]
+    )
+
+    assert result.validation_passed is True
+    assert result.cleaned_records[0].date == "2026-05-01"
+    assert result.cleaned_records[1].date == "2026-05-04"
+    assert all(repair.cleaned_value != "1970-01-01" for repair in result.repairs)
+    _assert_explanation_matches_score(result)
+
+
+def test_bad_date_is_not_converted_to_fake_default() -> None:
+    raw_record = {
+        "ticket_id": "1003",
+        "date": "bad-date",
+        "customer": "River Works",
+        "material": "Asphalt",
+        "quantity": 8,
+        "unit": "tons",
+        "job_site": "Lot 7",
+    }
+    result = run_aec_grading([raw_record])
+
+    assert result.validation_passed is False
+    assert len(result.failed_records) == 1
+    assert result.failed_records[0].record == raw_record
+    assert all(record.date != "1970-01-01" for record in result.cleaned_records)
+    assert all(repair.cleaned_value != "1970-01-01" for repair in result.repairs)
+    _assert_explanation_matches_score(result)
+
+
+def test_bad_date_dead_letters_after_retry_without_fake_default() -> None:
+    result = run_aec_grading(
+        [
+            {
+                "ticket_id": "1003",
+                "date": "bad-date",
+                "customer": "Acme Builders",
+                "material": "Concrete",
+                "quantity": 10,
+                "unit": "yd3",
+                "job_site": "North Yard",
+            }
+        ]
+    )
+
+    assert result.retry_count == MAX_RETRIES
+    assert _correction_instruction_captured(
+        result.processing_history, result.correction_instruction
+    )
+    assert _auditor_retry_followed_by_transformer_retry(result.processing_history)
+    assert result.validation_passed is False
+    assert len(result.failed_records) == 1
+    assert result.failed_records[0].record["date"] == "bad-date"
+    assert result.cleaned_records == []
+    assert any(
+        event.node == "auditor" and event.status == "retry"
+        for event in result.processing_history
+    )
+    assert any(
+        "Dead-lettered" in event.message for event in result.processing_history
+    )
+    repair_keys = {(repair.row, repair.field, repair.action_taken) for repair in result.repairs}
+    assert len(repair_keys) == len(result.repairs)
+    _assert_explanation_matches_score(result)
+
+
+def test_valid_iso_dates_remain_unchanged_when_other_rows_retry() -> None:
+    result = run_aec_grading(
+        [
+            {
+                "ticket_id": "1001",
+                "date": "2026-05-01",
+                "customer": "Acme Builders",
+                "material": "Concrete",
+                "quantity": 12,
+                "unit": "yd3",
+                "job_site": "North Yard",
+            },
+            {
+                "ticket_id": "1003",
+                "date": "bad-date",
+                "customer": "River Works",
+                "material": "Asphalt",
+                "quantity": 8,
+                "unit": "tons",
+                "job_site": "Lot 7",
+            },
+            {
+                "ticket_id": "1004",
+                "date": "2026-05-04",
+                "customer": "Delta Construction",
+                "material": "Sand",
+                "quantity": 15,
+                "unit": "tons",
+                "job_site": "South Yard",
+            },
+        ]
+    )
+
+    assert result.validation_passed is False
+    assert len(result.failed_records) == 1
+    assert len(result.cleaned_records) == 2
+    assert result.cleaned_records[0].date == "2026-05-01"
+    assert result.cleaned_records[1].date == "2026-05-04"
+    assert all(repair.cleaned_value != "1970-01-01" for repair in result.repairs)
+    _assert_failed_record_validation_history(result)
     _assert_explanation_matches_score(result)
 
 
@@ -102,36 +249,6 @@ def test_repairable_dirty_record_scores_below_100() -> None:
     _assert_explanation_matches_score(result)
 
 
-def test_self_correction_loop_recovers_on_retry() -> None:
-    result = run_aec_grading(
-        [
-            {
-                "ticket_id": "1003",
-                "date": "bad-date",
-                "customer": "Acme Builders",
-                "material": "Concrete",
-                "quantity": 10,
-                "unit": "yd3",
-                "job_site": "North Yard",
-            }
-        ]
-    )
-
-    assert result.retry_count >= 1
-    assert _correction_instruction_captured(
-        result.processing_history, result.correction_instruction
-    )
-    assert _auditor_retry_followed_by_transformer_retry(result.processing_history)
-    assert result.validation_passed is True
-    assert len(result.failed_records) == 0
-    assert result.cleaned_records[0].date == "1970-01-01"
-    assert any(
-        event.node == "auditor" and event.status == "retry"
-        for event in result.processing_history
-    )
-    _assert_explanation_matches_score(result)
-
-
 def test_self_correction_loop_dead_letters_after_max_retries() -> None:
     raw_record = {
         "ticket_id": "",
@@ -154,6 +271,7 @@ def test_self_correction_loop_dead_letters_after_max_retries() -> None:
     assert any(
         "Dead-lettered" in event.message for event in result.processing_history
     )
+    _assert_failed_record_validation_history(result)
     _assert_explanation_matches_score(result)
 
 
@@ -181,6 +299,7 @@ def test_unrecoverable_record_moves_to_failed_records() -> None:
     assert any(
         "Dead-lettered" in event.message for event in result.processing_history
     )
+    _assert_failed_record_validation_history(result)
     _assert_explanation_matches_score(result)
 
 
@@ -218,4 +337,5 @@ def test_retry_dead_letter_behavior_after_max_attempts() -> None:
     assert any(
         "Dead-lettered" in event.message for event in result.processing_history
     )
+    _assert_failed_record_validation_history(result)
     _assert_explanation_matches_score(result)

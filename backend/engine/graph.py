@@ -120,7 +120,7 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         all_cleaned, new_repairs = transform_records(
             state.raw_records, state.correction_instruction
         )
-        state.repairs.extend(new_repairs)
+        state.repairs = new_repairs
         skip_rows = _dead_lettered_rows(state)
         state.cleaned_records = _active_cleaned_records(all_cleaned, skip_rows)
         state.processing_history.append(
@@ -189,26 +189,43 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
 
         if not active_cleaned:
             validation_passed = False
-            validation_errors: dict[int, str] = {}
+            validation_errors = {}
+            validator_message = (
+                "Final validation failed due to dead-lettered records"
+                if state.failed_records
+                else "No active cleaned records available for final validation"
+            )
             state.processing_history.append(
                 _log_transition(
                     state,
                     "validator",
                     "failed",
-                    "No active cleaned records available for final validation",
+                    validator_message,
                 )
             )
+            if state.failed_records:
+                break
         else:
             validation_passed, validation_errors = deterministic_final_validation(
                 all_cleaned, skip_rows=skip_rows
             )
 
         if validation_passed:
-            state.processing_history.append(
-                _log_transition(
-                    state, "validator", "success", "Final validation passed"
+            if state.failed_records:
+                state.processing_history.append(
+                    _log_transition(
+                        state,
+                        "validator",
+                        "failed",
+                        "Final validation failed due to dead-lettered records",
+                    )
                 )
-            )
+            else:
+                state.processing_history.append(
+                    _log_transition(
+                        state, "validator", "success", "Final validation passed"
+                    )
+                )
             break
 
         state.correction_instruction = _format_row_failures(validation_errors)

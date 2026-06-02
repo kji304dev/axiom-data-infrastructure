@@ -166,20 +166,6 @@ def transform_records(
                 )
             )
 
-        if strict_retry and normalized_date == raw_date and raw_date:
-            normalized_date = "1970-01-01"
-            repairs.append(
-                _make_repair(
-                    row=row_index,
-                    field="date",
-                    original_value=raw_date,
-                    cleaned_value=normalized_date,
-                    action_taken="Applied strict retry fallback date",
-                    requires_review=True,
-                    confidence=0.5,
-                )
-            )
-
         cleaned_records.append(
             AECRecord(
                 ticket_id=ticket_id,
