@@ -9,6 +9,7 @@ from backend.agents.transformer import transform_records
 from backend.core.config import MAX_RETRIES, configure_logging
 from backend.core.schemas import FailedRecord, GradeAECResponse, ProcessingEvent
 from backend.engine.state import EngineState
+from backend.engine.scoring import calculate_health_score
 from backend.engine.validation import deterministic_final_validation
 
 configure_logging()
@@ -223,10 +224,10 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         break
 
     state.validation_passed = len(state.failed_records) == 0 and validation_passed
-    validation_error_count = len(state.failed_records) + len(validation_errors)
-    state.health_score = max(
-        0.0,
-        100.0 - (len(state.anomalies) * 10.0) - (validation_error_count * 15.0),
+    state.health_score, state.health_score_explanation = calculate_health_score(
+        state.anomalies,
+        state.repairs,
+        state.failed_records,
     )
 
     state.processing_history.append(
@@ -242,5 +243,6 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         retry_count=state.retry_count,
         correction_instruction=state.correction_instruction,
         health_score=state.health_score,
+        health_score_explanation=state.health_score_explanation,
         validation_passed=state.validation_passed,
     )

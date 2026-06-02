@@ -33,6 +33,20 @@ class Repair(BaseModel):
     original_value: str
     cleaned_value: str
     action_taken: str
+    requires_review: bool = False
+    confidence: float = 1.0
+
+
+class HealthScoreExplanation(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    starting_score: int
+    high_severity_anomaly_count: int
+    medium_severity_anomaly_count: int
+    review_required_repair_count: int
+    confident_repair_count: int
+    failed_record_count: int
+    final_score: float
 
 
 class ProcessingEvent(BaseModel):
@@ -85,4 +99,5 @@ class GradeAECResponse(BaseModel):
     retry_count: int
     correction_instruction: str | None = None
     health_score: float
+    health_score_explanation: HealthScoreExplanation
     validation_passed: bool

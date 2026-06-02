@@ -1,5 +1,13 @@
 from backend.core.config import MAX_RETRIES
 from backend.engine.graph import run_aec_grading
+from backend.engine.scoring import (
+    CONFIDENT_REPAIR_PENALTY,
+    FAILED_RECORD_PENALTY,
+    HIGH_ANOMALY_PENALTY,
+    MEDIUM_ANOMALY_PENALTY,
+    REVIEW_REPAIR_PENALTY,
+    STARTING_SCORE,
+)
 
 
 def _auditor_retry_followed_by_transformer_retry(history) -> bool:
@@ -16,12 +24,29 @@ def _auditor_retry_followed_by_transformer_retry(history) -> bool:
 def _correction_instruction_captured(history, final_instruction: str | None) -> bool:
     if final_instruction:
         return True
-    return any(
-        "correction required" in event.message for event in history
+    return any("correction required" in event.message for event in history)
+
+
+def _expected_final_score(explanation) -> float:
+    score = (
+        explanation.starting_score
+        - (explanation.high_severity_anomaly_count * HIGH_ANOMALY_PENALTY)
+        - (explanation.medium_severity_anomaly_count * MEDIUM_ANOMALY_PENALTY)
+        - (explanation.review_required_repair_count * REVIEW_REPAIR_PENALTY)
+        - (explanation.confident_repair_count * CONFIDENT_REPAIR_PENALTY)
+        - (explanation.failed_record_count * FAILED_RECORD_PENALTY)
     )
+    return float(max(0, min(100, score)))
 
 
-def test_clean_record_passes_without_retry() -> None:
+def _assert_explanation_matches_score(result) -> None:
+    explanation = result.health_score_explanation
+    assert explanation.starting_score == STARTING_SCORE
+    assert explanation.final_score == result.health_score
+    assert explanation.final_score == _expected_final_score(explanation)
+
+
+def test_clean_record_health_score_is_100() -> None:
     result = run_aec_grading(
         [
             {
@@ -40,9 +65,14 @@ def test_clean_record_passes_without_retry() -> None:
     assert result.retry_count == 0
     assert len(result.cleaned_records) == 1
     assert len(result.failed_records) == 0
+    assert result.health_score == 100
+    assert result.health_score_explanation.confident_repair_count == 0
+    assert result.health_score_explanation.review_required_repair_count == 0
+    assert result.health_score_explanation.failed_record_count == 0
+    _assert_explanation_matches_score(result)
 
 
-def test_repairable_dirty_record_is_transformed() -> None:
+def test_repairable_dirty_record_scores_below_100() -> None:
     result = run_aec_grading(
         [
             {
@@ -63,6 +93,10 @@ def test_repairable_dirty_record_is_transformed() -> None:
     assert result.cleaned_records[0].customer == "UNKNOWN_CUSTOMER"
     assert result.cleaned_records[0].job_site == "UNASSIGNED"
     assert len(result.failed_records) == 0
+    assert result.health_score < 100
+    assert result.health_score_explanation.review_required_repair_count >= 1
+    assert result.health_score_explanation.high_severity_anomaly_count >= 1
+    _assert_explanation_matches_score(result)
 
 
 def test_self_correction_loop_recovers_on_retry() -> None:
@@ -92,6 +126,7 @@ def test_self_correction_loop_recovers_on_retry() -> None:
         event.node == "auditor" and event.status == "retry"
         for event in result.processing_history
     )
+    _assert_explanation_matches_score(result)
 
 
 def test_self_correction_loop_dead_letters_after_max_retries() -> None:
@@ -110,12 +145,13 @@ def test_self_correction_loop_dead_letters_after_max_retries() -> None:
     assert len(result.failed_records) >= 1
     assert result.validation_passed is False
     assert result.failed_records[0].record == raw_record
-    assert any(
-        event.status == "retry" for event in result.processing_history
-    )
+    assert result.health_score <= 40
+    assert result.health_score_explanation.failed_record_count >= 1
+    assert any(event.status == "retry" for event in result.processing_history)
     assert any(
         "Dead-lettered" in event.message for event in result.processing_history
     )
+    _assert_explanation_matches_score(result)
 
 
 def test_unrecoverable_record_moves_to_failed_records() -> None:
@@ -136,10 +172,13 @@ def test_unrecoverable_record_moves_to_failed_records() -> None:
     assert len(result.failed_records) == 1
     assert result.failed_records[0].record == raw_record
     assert result.failed_records[0].reason
+    assert result.health_score <= 40
+    assert result.health_score_explanation.failed_record_count == 1
     assert any(event.status == "retry" for event in result.processing_history)
     assert any(
         "Dead-lettered" in event.message for event in result.processing_history
     )
+    _assert_explanation_matches_score(result)
 
 
 def test_retry_dead_letter_behavior_after_max_attempts() -> None:
@@ -170,7 +209,10 @@ def test_retry_dead_letter_behavior_after_max_attempts() -> None:
     assert result.validation_passed is False
     assert len(result.cleaned_records) == 1
     assert result.cleaned_records[0].ticket_id == "2002"
+    assert result.health_score < 100
+    assert result.health_score_explanation.failed_record_count == 1
     assert any(event.status == "retry" for event in result.processing_history)
     assert any(
         "Dead-lettered" in event.message for event in result.processing_history
     )
+    _assert_explanation_matches_score(result)

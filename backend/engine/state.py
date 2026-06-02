@@ -3,7 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.core.schemas import AECRecord, Anomaly, FailedRecord, ProcessingEvent, Repair
+from backend.core.schemas import (
+    AECRecord,
+    Anomaly,
+    FailedRecord,
+    HealthScoreExplanation,
+    ProcessingEvent,
+    Repair,
+)
 
 
 @dataclass
@@ -17,4 +24,5 @@ class EngineState:
     retry_count: int = 0
     correction_instruction: str | None = None
     health_score: float = 100.0
+    health_score_explanation: HealthScoreExplanation | None = None
     validation_passed: bool = False
