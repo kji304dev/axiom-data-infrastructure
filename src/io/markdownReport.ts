@@ -1,4 +1,5 @@
 import { buildHealthScoreBreakdown } from "../agents/grader.js";
+import { getUserFacingAnomalies } from "./anomalies.js";
 import type { ADIGraphState, Anomaly } from "../types/state.js";
 
 export interface MarkdownReportOptions {
@@ -63,10 +64,6 @@ function buildHealthScoreExplanationSection(result: ADIGraphState): string[] {
   ];
 }
 
-function isUserFacingAnomaly(anomaly: Anomaly): boolean {
-  return anomaly.field !== "cleanedData";
-}
-
 function csvRowToIndex(csvRow: number): number {
   return csvRow - 2;
 }
@@ -95,15 +92,11 @@ function formatUserFacingIssue(
   return anomaly.issue;
 }
 
-function getUserFacingAnomalies(result: ADIGraphState): Anomaly[] {
-  return result.anomalies.filter(isUserFacingAnomaly);
-}
-
 export function generateMarkdownReport(
   options: MarkdownReportOptions,
 ): string {
   const { inputFilePath, result } = options;
-  const userFacingAnomalies = getUserFacingAnomalies(result);
+  const userFacingAnomalies = getUserFacingAnomalies(result.anomalies);
   const repairsRequiringReview = result.repairs.filter(
     (repair) => repair.requiresReview,
   ).length;

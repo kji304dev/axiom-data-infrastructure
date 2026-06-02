@@ -1,4 +1,5 @@
 import type { ADIStateUpdate, ADIGraphState, Anomaly } from "../types/state.js";
+import { getUserFacingAnomalies } from "../io/anomalies.js";
 import { classifyRowStatuses } from "./rowStatus.js";
 import { recommendOperatorDecisions } from "./operatorDecision.js";
 
@@ -22,7 +23,7 @@ export interface HealthScoreBreakdown {
 
 /** Anomalies that affect the health score (excludes internal structural validation). */
 export function getScoringAnomalies(anomalies: Anomaly[]): Anomaly[] {
-  return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
+  return getUserFacingAnomalies(anomalies);
 }
 
 export function buildHealthScoreBreakdown(

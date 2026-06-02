@@ -5,8 +5,9 @@ import { getRowStatus } from "../src/agents/rowStatus.js";
 import { getOperatorDecision } from "../src/agents/operatorDecision.js";
 import { getFinalOperatorDecision } from "../src/io/operatorOverrides.js";
 import { attachRunMetadata } from "../src/io/runMetadata.js";
+import { getUserFacingAnomalies } from "../src/io/anomalies.js";
 import { readTicketCsv } from "../src/io/csvReader.js";
-import type { Anomaly, RecommendedDecision, RowStatusKind } from "../src/types/state.js";
+import type { RecommendedDecision, RowStatusKind } from "../src/types/state.js";
 
 const DIRTY_SAMPLE_CSV = resolve("samples/dirty_aec_ticket.csv");
 const CLEAN_SAMPLE_CSV = resolve("samples/clean_aec_ticket.csv");
@@ -14,10 +15,6 @@ const UNRECOVERABLE_SAMPLE_CSV = resolve("samples/unrecoverable_aec_ticket.csv")
 const NO_OVERRIDES_PATH = resolve("operator/no-overrides-for-tests.json");
 const OPERATOR_OVERRIDES_PATH = resolve("operator/decisions.json");
 const DEFAULT_OUTPUT_DIR = "output";
-
-function getUserFacingAnomalies(anomalies: Anomaly[]): Anomaly[] {
-  return anomalies.filter((anomaly) => anomaly.field !== "cleanedData");
-}
 
 function expectRowStatus(
   rowStatuses: { row: number; status: RowStatusKind }[],

@@ -11,6 +11,7 @@ import { generateMarkdownReport } from "./io/markdownReport.js";
 import { attachRunMetadata } from "./io/runMetadata.js";
 import { createAndWriteRunManifest } from "./io/runManifest.js";
 import { updateRunIndex } from "./io/runIndex.js";
+import { summarizeAnomalies } from "./io/anomalies.js";
 
 async function main(): Promise<void> {
   const { inputPath, outputDir: explicitOutputDir } = parseCliArgs(
@@ -56,6 +57,8 @@ async function main(): Promise<void> {
   );
   const runIndexPath = updateRunIndex(manifest);
 
+  const anomalySummary = summarizeAnomalies(result.anomalies);
+
   console.log(`Input file: ${resolvedInputPath}`);
   if (isAutoOutputDir) {
     console.log(`Auto-generated output directory: ${resolvedOutputDir}`);
@@ -67,7 +70,8 @@ async function main(): Promise<void> {
   console.log(`Manifest saved to: ${manifestPath}`);
   console.log(`Run index updated at: ${runIndexPath}`);
   console.log(`Total rows: ${result.rawData.length}`);
-  console.log(`Anomaly count: ${result.anomalies.length}`);
+  console.log(`User-facing anomalies: ${anomalySummary.userFacing}`);
+  console.log(`Internal anomalies: ${anomalySummary.internal}`);
   console.log(`validationPassed: ${result.validationPassed}`);
   console.log(`healthScore: ${result.healthScore}`);
 }
