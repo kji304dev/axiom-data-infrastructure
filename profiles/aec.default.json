@@ -1,0 +1,12 @@
+{
+  "profile": "aec",
+  "canonicalFields": {
+    "ticket_id": ["ticket_id", "ticket id", "ticket no", "ticket number"],
+    "date": ["date", "pour date", "delivery date", "ticket date"],
+    "customer": ["customer", "client", "company"],
+    "material": ["material", "material type", "product"],
+    "quantity": ["quantity", "qty", "amount"],
+    "unit": ["unit", "uom", "units"],
+    "job_site": ["job_site", "job site", "site", "location"]
+  }
+}

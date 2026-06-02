@@ -1,0 +1,12 @@
+{
+  "runId": "20260602T002706Z_dirty_aec_ticket_alt_headers",
+  "inputFile": "/Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket_alt_headers.csv",
+  "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/20260602T002706Z_dirty_aec_ticket_alt_headers",
+  "jsonReportPath": "/Users/kji/dev/axiom-data-infrastructure/output/runs/20260602T002706Z_dirty_aec_ticket_alt_headers/langgraph-report.json",
+  "markdownReportPath": "/Users/kji/dev/axiom-data-infrastructure/output/runs/20260602T002706Z_dirty_aec_ticket_alt_headers/clean-vs-dirty-report.md",
+  "healthScore": 58,
+  "validationPassed": false,
+  "generatedAt": "2026-06-02T00:27:06.225Z",
+  "engineVersion": "0.1.0",
+  "profile": "aec"
+}

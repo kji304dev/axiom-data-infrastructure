@@ -1,21 +1,53 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { InputValidationError } from "./inputValidationError.js";
+import {
+  loadProfileConfig,
+  mapHeadersToCanonical,
+  mapRowToCanonicalFields,
+} from "./profileConfig.js";
+import { DEFAULT_PROFILE, type DataProfile } from "./profiles.js";
 import type { RawTicketRow } from "../types/state.js";
 
 function parseCsvLine(line: string): string[] {
   return line.split(",").map((cell) => cell.trim());
 }
 
-export function readTicketCsv(filePath: string): RawTicketRow[] {
+export function readTicketCsv(
+  filePath: string,
+  profile: DataProfile = DEFAULT_PROFILE,
+): RawTicketRow[] {
   const absolutePath = resolve(filePath);
-  const content = readFileSync(absolutePath, "utf-8");
-  const lines = content.trim().split(/\r?\n/);
 
-  if (lines.length === 0) {
-    return [];
+  if (!existsSync(absolutePath)) {
+    throw new InputValidationError(
+      `Error: Input file not found: ${absolutePath}`,
+    );
   }
 
+  const profileConfig = loadProfileConfig(profile);
+  const content = readFileSync(absolutePath, "utf-8");
+  const trimmed = content.trim();
+
+  if (!trimmed) {
+    throw new InputValidationError(
+      `Error: Input CSV is empty: ${absolutePath}`,
+    );
+  }
+
+  const lines = trimmed.split(/\r?\n/);
   const headers = parseCsvLine(lines[0]);
+  const { columnIndexes, missingFields } = mapHeadersToCanonical(
+    headers,
+    profileConfig,
+  );
+
+  if (missingFields.length > 0) {
+    throw new InputValidationError(
+      `Error: Input CSV is missing required mappable fields: ${missingFields.join(", ")}`,
+    );
+  }
+
   const rows: RawTicketRow[] = [];
 
   for (let index = 1; index < lines.length; index += 1) {
@@ -25,13 +57,13 @@ export function readTicketCsv(filePath: string): RawTicketRow[] {
     }
 
     const values = parseCsvLine(line);
-    const row: RawTicketRow = {};
+    rows.push(mapRowToCanonicalFields(values, columnIndexes));
+  }
 
-    for (let column = 0; column < headers.length; column += 1) {
-      row[headers[column]] = values[column] ?? "";
-    }
-
-    rows.push(row);
+  if (rows.length === 0) {
+    throw new InputValidationError(
+      `Error: Input CSV is empty: ${absolutePath}`,
+    );
   }
 
   return rows;

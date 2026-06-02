@@ -12,6 +12,7 @@ import { attachRunMetadata } from "./io/runMetadata.js";
 import { createAndWriteRunManifest } from "./io/runManifest.js";
 import { updateRunIndex } from "./io/runIndex.js";
 import { summarizeAnomalies } from "./io/anomalies.js";
+import { isInputValidationError } from "./io/inputValidationError.js";
 
 async function main(): Promise<void> {
   const { inputPath, outputDir: explicitOutputDir, profile } = parseCliArgs(
@@ -19,7 +20,7 @@ async function main(): Promise<void> {
   );
   const resolvedInputPath = resolve(inputPath);
 
-  const rawData = readTicketCsv(inputPath);
+  const rawData = readTicketCsv(inputPath, profile);
   const workflowResult = await runADIWorkflow(rawData);
 
   const {
@@ -79,6 +80,12 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
+  if (isInputValidationError(error)) {
+    console.error(error.message);
+    process.exitCode = 1;
+    return;
+  }
+
   console.error(error);
   process.exitCode = 1;
 });
