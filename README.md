@@ -197,6 +197,16 @@ Source CSVs do not need exact canonical header names. The AEC profile maps commo
 
 If required canonical fields cannot be mapped, ADI fails before grading with a clear error.
 
+## Python FastAPI Backend
+
+A production-oriented Python backend now exists under `backend/` and runs alongside the TypeScript engine.
+
+- API: `backend/api/` exposes `POST /grade/aec` via FastAPI.
+- State machine: `backend/engine/graph.py` orchestrates Analyzer -> Transformer -> Auditor with retry/dead-letter routing.
+- Strict contracts: `backend/core/schemas.py` uses Pydantic v2 models for request/response and engine artifacts.
+- Deterministic guardrail: `backend/engine/validation.py` enforces exact required AEC fields before output is accepted.
+- Tests: `backend/tests/` covers clean, repairable, unrecoverable, and retry/dead-letter behaviors plus API checks.
+
 ### Note
 
 This TypeScript engine is currently on the **`langgraph-typescript-engine`** branch and should **not** replace the Python MVP yet. The Python validator in `app/validator.py` remains the baseline for comparison.
