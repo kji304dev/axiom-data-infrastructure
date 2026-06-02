@@ -27,36 +27,39 @@ def test_grade_aec_endpoint_success() -> None:
     payload = response.json()
     assert payload["validation_passed"] is True
     assert payload["cleaned_records"][0]["ticket_id"] == "1001"
+    assert payload["failed_records"] == []
 
 
 def test_grade_aec_endpoint_unrecoverable() -> None:
+    raw_record = {
+        "ticket_id": "",
+        "date": "bad-date",
+        "customer": "",
+        "material": "Concrete",
+        "quantity": "not-a-number",
+        "unit": "",
+        "job_site": "",
+    }
     response = client.post(
         "/grade/aec",
-        json={
-            "records": [
-                {
-                    "ticket_id": "",
-                    "date": "bad-date",
-                    "customer": "",
-                    "material": "Concrete",
-                    "quantity": "not-a-number",
-                    "unit": "",
-                    "job_site": "",
-                }
-            ]
-        },
+        json={"records": [raw_record]},
     )
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["validation_passed"] is False
-    assert "retry_count" in payload
-    assert isinstance(payload["retry_count"], int)
-    assert payload["retry_count"] >= 0
+    assert payload["retry_count"] == 2
     assert payload["health_score"] < 100
-    assert payload["failed_records"] or payload["anomalies"]
+    assert len(payload["failed_records"]) == 1
+    assert payload["failed_records"][0]["record"] == raw_record
+    assert payload["failed_records"][0]["reason"]
 
     processing_nodes = {event["node"] for event in payload["processing_history"]}
     assert {"analyzer", "transformer", "auditor", "validator"}.issubset(
         processing_nodes
+    )
+    assert any(event["status"] == "retry" for event in payload["processing_history"])
+    assert any(
+        "Dead-lettered" in event["message"]
+        for event in payload["processing_history"]
     )

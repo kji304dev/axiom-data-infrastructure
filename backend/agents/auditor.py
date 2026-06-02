@@ -13,19 +13,27 @@ def _is_valid_iso_date(value: str) -> bool:
         return False
 
 
-def audit_records(cleaned_records: list[AECRecord]) -> tuple[bool, str | None]:
-    failed_rows: list[str] = []
+def audit_records(
+    cleaned_records: list[AECRecord],
+    *,
+    skip_rows: set[int] | None = None,
+) -> tuple[bool, dict[int, str]]:
+    skip_rows = skip_rows or set()
+    failures: dict[int, str] = {}
 
     for idx, record in enumerate(cleaned_records, start=1):
-        if not record.ticket_id.strip():
-            failed_rows.append(f"row {idx}: missing ticket_id")
+        if idx in skip_rows:
             continue
-        if not _is_valid_iso_date(record.date):
-            failed_rows.append(f"row {idx}: invalid date")
-            continue
-        if record.quantity <= 0:
-            failed_rows.append(f"row {idx}: non-positive quantity")
 
-    if failed_rows:
-        return False, " ; ".join(failed_rows)
-    return True, None
+        reasons: list[str] = []
+        if not record.ticket_id.strip():
+            reasons.append("missing ticket_id")
+        if not _is_valid_iso_date(record.date):
+            reasons.append("invalid date")
+        if record.quantity <= 0:
+            reasons.append("non-positive quantity")
+
+        if reasons:
+            failures[idx] = "; ".join(reasons)
+
+    return len(failures) == 0, failures

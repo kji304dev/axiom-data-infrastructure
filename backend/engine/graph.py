@@ -15,7 +15,9 @@ configure_logging()
 logger = logging.getLogger("adi.backend.engine")
 
 
-def _log_transition(node: str, status: str, message: str, retry_count: int) -> ProcessingEvent:
+def _log_transition(
+    node: str, status: str, message: str, retry_count: int
+) -> ProcessingEvent:
     payload = {
         "node": node,
         "status": status,
@@ -28,12 +30,48 @@ def _log_transition(node: str, status: str, message: str, retry_count: int) -> P
     )
 
 
-def _dead_letter_failed_rows(state: EngineState, failure_message: str) -> None:
-    for row_idx, record in enumerate(state.raw_records, start=1):
+def _format_row_failures(failures: dict[int, str]) -> str:
+    return " ; ".join(
+        f"row {row}: {reason}" for row, reason in sorted(failures.items())
+    )
+
+
+def _dead_lettered_rows(state: EngineState) -> set[int]:
+    return {failed.row for failed in state.failed_records}
+
+
+def _dead_letter_unresolved_rows(
+    state: EngineState,
+    row_failures: dict[int, str],
+) -> None:
+    failed_row_numbers = set(row_failures.keys())
+    for row_idx, reason in sorted(row_failures.items()):
+        if row_idx in _dead_lettered_rows(state):
+            continue
         state.failed_records.append(
-            FailedRecord(row=row_idx, reason=failure_message, record=record)
+            FailedRecord(
+                row=row_idx,
+                reason=reason,
+                record=dict(state.raw_records[row_idx - 1]),
+            )
         )
-    state.cleaned_records = []
+
+    state.cleaned_records = [
+        record
+        for idx, record in enumerate(state.cleaned_records, start=1)
+        if idx not in failed_row_numbers
+    ]
+
+
+def _active_cleaned_records(
+    cleaned_records: list[Any],
+    skip_rows: set[int],
+) -> list[Any]:
+    return [
+        record
+        for idx, record in enumerate(cleaned_records, start=1)
+        if idx not in skip_rows
+    ]
 
 
 def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
@@ -61,15 +99,17 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
                 state.retry_count,
             )
         )
-        state.cleaned_records, new_repairs = transform_records(
+        all_cleaned, new_repairs = transform_records(
             state.raw_records, state.correction_instruction
         )
         state.repairs.extend(new_repairs)
+        skip_rows = _dead_lettered_rows(state)
+        state.cleaned_records = _active_cleaned_records(all_cleaned, skip_rows)
         state.processing_history.append(
             _log_transition(
                 "transformer",
                 "success",
-                f"Transformer produced {len(state.cleaned_records)} cleaned records",
+                f"Transformer produced {len(state.cleaned_records)} active cleaned records",
                 state.retry_count,
             )
         )
@@ -79,74 +119,115 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
                 "auditor", "start", "Auditing transformed output", state.retry_count
             )
         )
-        passed_audit, correction_instruction = audit_records(state.cleaned_records)
-        if passed_audit:
+        passed_audit, audit_failures = audit_records(all_cleaned, skip_rows=skip_rows)
+        if not passed_audit:
+            state.correction_instruction = _format_row_failures(audit_failures)
+            if state.retry_count < MAX_RETRIES:
+                state.retry_count += 1
+                state.processing_history.append(
+                    _log_transition(
+                        "auditor",
+                        "retry",
+                        f"Audit failed; correction required: {state.correction_instruction}",
+                        state.retry_count,
+                    )
+                )
+                continue
+
+            _dead_letter_unresolved_rows(state, audit_failures)
+            state.processing_history.append(
+                _log_transition(
+                    "auditor",
+                    "failed",
+                    (
+                        "Dead-lettered "
+                        f"{len(audit_failures)} unresolved record(s) after max retries: "
+                        f"{state.correction_instruction}"
+                    ),
+                    state.retry_count,
+                )
+            )
+        else:
             state.correction_instruction = None
             state.processing_history.append(
                 _log_transition(
                     "auditor", "success", "Audit passed", state.retry_count
                 )
             )
+
+        skip_rows = _dead_lettered_rows(state)
+        active_cleaned = _active_cleaned_records(all_cleaned, skip_rows)
+
+        state.processing_history.append(
+            _log_transition(
+                "validator",
+                "start",
+                "Running deterministic final validation",
+                state.retry_count,
+            )
+        )
+
+        if not active_cleaned:
+            validation_passed = False
+            validation_errors: dict[int, str] = {}
+            state.processing_history.append(
+                _log_transition(
+                    "validator",
+                    "failed",
+                    "No active cleaned records available for final validation",
+                    state.retry_count,
+                )
+            )
+        else:
+            validation_passed, validation_errors = deterministic_final_validation(
+                all_cleaned, skip_rows=skip_rows
+            )
+
+        if validation_passed:
+            state.processing_history.append(
+                _log_transition(
+                    "validator", "success", "Final validation passed", state.retry_count
+                )
+            )
             break
 
-        state.correction_instruction = correction_instruction
+        state.correction_instruction = _format_row_failures(validation_errors)
         if state.retry_count < MAX_RETRIES:
             state.retry_count += 1
             state.processing_history.append(
                 _log_transition(
-                    "auditor",
+                    "validator",
                     "retry",
-                    f"Audit failed; correction required: {correction_instruction}",
+                    (
+                        "Final validation failed; correction required: "
+                        f"{state.correction_instruction}"
+                    ),
                     state.retry_count,
                 )
             )
             continue
 
-        state.processing_history.append(
-            _log_transition(
-                "auditor",
-                "failed",
-                f"Audit failed after max retries: {correction_instruction}",
-                state.retry_count,
-            )
-        )
-        _dead_letter_failed_rows(state, correction_instruction or "Audit failed")
-        break
-
-    state.processing_history.append(
-        _log_transition(
-            "validator",
-            "start",
-            "Running deterministic final validation",
-            state.retry_count,
-        )
-    )
-    validation_passed, validation_errors = deterministic_final_validation(
-        state.cleaned_records
-    )
-    if state.failed_records:
-        validation_passed = False
-        validation_errors.append("failed_records is not empty")
-    state.validation_passed = validation_passed
-    state.health_score = max(0.0, 100.0 - (len(state.anomalies) * 10.0) - (len(validation_errors) * 15.0))
-
-    if validation_passed:
-        state.processing_history.append(
-            _log_transition("validator", "success", "Final validation passed", state.retry_count)
-        )
-    else:
+        _dead_letter_unresolved_rows(state, validation_errors)
         state.processing_history.append(
             _log_transition(
                 "validator",
                 "failed",
-                f"Final validation failed: {'; '.join(validation_errors)}",
+                (
+                    "Dead-lettered "
+                    f"{len(validation_errors)} unresolved record(s) after max retries: "
+                    f"{state.correction_instruction}"
+                ),
                 state.retry_count,
             )
         )
-        if not state.failed_records:
-            _dead_letter_failed_rows(
-                state, "Final deterministic validation failed"
-            )
+        break
+
+    state.validation_passed = len(state.failed_records) == 0 and validation_passed
+    validation_error_count = len(state.failed_records) + len(validation_errors)
+    state.health_score = max(
+        0.0,
+        100.0 - (len(state.anomalies) * 10.0) - (validation_error_count * 15.0),
+    )
 
     state.processing_history.append(
         _log_transition("complete", "success", "Workflow completed", state.retry_count)
