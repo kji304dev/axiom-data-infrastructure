@@ -51,6 +51,14 @@ Each run is also appended to the central operator index at `output/runs/index.js
 
 The output directory is created automatically if it does not exist.
 
+### Run history
+
+List past operator grading runs:
+
+```bash
+npm run runs
+```
+
 ### Typecheck
 
 ```bash
