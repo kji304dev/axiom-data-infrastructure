@@ -97,6 +97,106 @@ Allowed `finalDecision` values: `approved`, `approved_with_changes`, `needs_cust
 
 If `operator/decisions.json` is missing, the engine still runs and uses recommended decisions only.
 
+## Operator Workflow
+
+End-to-end steps for running ADI on AEC CSV data from a clean checkout.
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Run typecheck
+
+```bash
+npm run typecheck
+```
+
+### 3. Run tests
+
+```bash
+npm test
+```
+
+### 4. Run ADI (automatic output folder)
+
+Creates a unique run folder under `output/runs/<runId>/`:
+
+```bash
+npm run dev -- samples/dirty_aec_ticket.csv --profile aec
+```
+
+### 5. Run ADI (explicit output folder)
+
+Writes reports to a fixed directory you choose:
+
+```bash
+npm run dev -- samples/dirty_aec_ticket.csv --profile aec --output-dir output/runs/dirty-aec-test
+```
+
+### 6. View run history
+
+```bash
+npm run runs
+```
+
+### 7. Output locations
+
+Each run writes:
+
+- `output/runs/<runId>/langgraph-report.json` — full workflow state (raw data, cleaned data, repairs, anomalies, scores)
+- `output/runs/<runId>/clean-vs-dirty-report.md` — human-readable summary for review
+- `output/runs/<runId>/manifest.json` — run metadata (paths, health score, validation status, timestamps)
+
+All runs are indexed at:
+
+- `output/runs/index.json`
+
+Do **not** commit generated output files. They are local run artifacts.
+
+### 8. Operator overrides
+
+For final human notes and decisions on specific rows:
+
+```bash
+cp operator/decisions.example.json operator/decisions.json
+```
+
+Edit `operator/decisions.json` with row-level overrides (`row`, `finalDecision`, `operatorNote`). This file is ignored by Git and may contain customer or operator notes.
+
+If `operator/decisions.json` is missing, ADI still runs using recommended decisions only.
+
+### 9. Row statuses
+
+Each row is classified as one of:
+
+| Status | Meaning |
+|--------|---------|
+| `clean` | No repairs needed |
+| `repaired` | Automatically fixed with high confidence |
+| `needs_review` | Repaired but flagged for operator review |
+| `rejected` | Could not be cleaned to a valid state |
+
+### 10. Final operator decisions
+
+Recommended and final decisions use these values:
+
+| Decision | Meaning |
+|----------|---------|
+| `approved` | Accept as-is |
+| `approved_with_changes` | Accept after automatic repairs |
+| `needs_customer_input` | Escalate to customer for missing or ambiguous data |
+| `rejected` | Do not accept this row |
+
+Override recommended decisions in `operator/decisions.json` when your judgment differs.
+
+### 11. AEC column aliases
+
+Source CSVs do not need exact canonical header names. The AEC profile maps common aliases to ADI fields via `profiles/aec.default.json` (e.g. `Ticket No` → `ticket_id`, `Pour Date` → `date`, `Site` → `job_site`).
+
+If required canonical fields cannot be mapped, ADI fails before grading with a clear error.
+
 ### Note
 
 This TypeScript engine is currently on the **`langgraph-typescript-engine`** branch and should **not** replace the Python MVP yet. The Python validator in `app/validator.py` remains the baseline for comparison.
