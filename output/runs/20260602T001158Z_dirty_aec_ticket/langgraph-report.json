@@ -211,10 +211,10 @@
   "validationPassed": false,
   "cleanAttempts": 3,
   "runMetadata": {
-    "runId": "20260602T001142Z_dirty_aec_ticket",
+    "runId": "20260602T001158Z_dirty_aec_ticket",
     "inputFile": "/Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv",
-    "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test",
-    "generatedAt": "2026-06-02T00:11:42.849Z",
+    "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/20260602T001158Z_dirty_aec_ticket",
+    "generatedAt": "2026-06-02T00:11:58.014Z",
     "engineVersion": "0.1.0"
   }
 }

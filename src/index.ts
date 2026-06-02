@@ -1,7 +1,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runADIWorkflow } from "./engine/graph.js";
-import { parseCliArgs, resolveOutputPaths } from "./io/cliArgs.js";
+import {
+  parseCliArgs,
+  resolveOutputPaths,
+  resolveRunOutputDirectory,
+} from "./io/cliArgs.js";
 import { readTicketCsv } from "./io/csvReader.js";
 import { generateMarkdownReport } from "./io/markdownReport.js";
 import { attachRunMetadata } from "./io/runMetadata.js";
@@ -9,17 +13,30 @@ import { createAndWriteRunManifest } from "./io/runManifest.js";
 import { updateRunIndex } from "./io/runIndex.js";
 
 async function main(): Promise<void> {
-  const { inputPath, outputDir } = parseCliArgs(process.argv.slice(2));
+  const { inputPath, outputDir: explicitOutputDir } = parseCliArgs(
+    process.argv.slice(2),
+  );
   const resolvedInputPath = resolve(inputPath);
-  const { outputDir: resolvedOutputDir, jsonPath, markdownPath } =
-    resolveOutputPaths(outputDir);
 
   const rawData = readTicketCsv(inputPath);
   const workflowResult = await runADIWorkflow(rawData);
+
+  const {
+    outputDir: resolvedOutputDir,
+    isAutoOutputDir,
+    generatedAt,
+  } = resolveRunOutputDirectory({
+    inputFile: resolvedInputPath,
+    explicitOutputDir,
+  });
+
   const result = attachRunMetadata(workflowResult, {
     inputFile: resolvedInputPath,
     outputDirectory: resolvedOutputDir,
+    generatedAt,
   });
+
+  const { jsonPath, markdownPath } = resolveOutputPaths(resolvedOutputDir);
 
   mkdirSync(resolvedOutputDir, { recursive: true });
   writeFileSync(jsonPath, `${JSON.stringify(result, null, 2)}\n`, "utf-8");
@@ -40,7 +57,11 @@ async function main(): Promise<void> {
   const runIndexPath = updateRunIndex(manifest);
 
   console.log(`Input file: ${resolvedInputPath}`);
-  console.log(`Output directory: ${resolvedOutputDir}`);
+  if (isAutoOutputDir) {
+    console.log(`Auto-generated output directory: ${resolvedOutputDir}`);
+  } else {
+    console.log(`Output directory: ${resolvedOutputDir}`);
+  }
   console.log(`JSON report saved to: ${jsonPath}`);
   console.log(`Markdown report saved to: ${markdownPath}`);
   console.log(`Manifest saved to: ${manifestPath}`);

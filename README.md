@@ -25,19 +25,21 @@ npm install
 
 ### Run
 
-Default output directory (`output/`):
+Automatic output directory (`output/runs/<runId>/`):
 
 ```bash
 npm run dev -- samples/dirty_aec_ticket.csv
 ```
 
-Custom output directory:
+Explicit output directory:
 
 ```bash
 npm run dev -- samples/dirty_aec_ticket.csv --output-dir output/runs/dirty-aec-test
 ```
 
 If no input path is provided, it defaults to `samples/dirty_aec_ticket.csv`.
+
+When `--output-dir` is omitted, the engine creates a unique run folder under `output/runs/` using the same `runId` recorded in run metadata.
 
 Reports are written to:
 
@@ -57,16 +59,16 @@ npm run typecheck
 
 ### Outputs
 
-By default, reports are written to `output/`:
+By default, each run writes to its own directory under `output/runs/<runId>/`:
 
 | File | Description |
 |------|-------------|
-| `output/langgraph-report.json` | Full workflow state (raw data, cleaned data, repairs, anomalies, scores) |
-| `output/clean-vs-dirty-report.md` | Human-readable summary with repairs and customer-facing anomalies |
-| `output/manifest.json` | Run index metadata (paths, health score, validation status, timestamps) |
+| `output/runs/<runId>/langgraph-report.json` | Full workflow state (raw data, cleaned data, repairs, anomalies, scores) |
+| `output/runs/<runId>/clean-vs-dirty-report.md` | Human-readable summary with repairs and customer-facing anomalies |
+| `output/runs/<runId>/manifest.json` | Run metadata (paths, health score, validation status, timestamps) |
 | `output/runs/index.json` | Central index of all operator grading runs |
 
-Use `--output-dir <path>` to write reports to a different directory (see **Run** above).
+Use `--output-dir <path>` to write reports to a fixed directory instead (see **Run** above).
 
 ### Operator overrides
 

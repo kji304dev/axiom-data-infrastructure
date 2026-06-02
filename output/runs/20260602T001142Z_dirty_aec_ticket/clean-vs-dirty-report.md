@@ -4,8 +4,8 @@
 
 - **Run ID:** 20260602T001142Z_dirty_aec_ticket
 - **Input file:** /Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv
-- **Output directory:** /Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test
-- **Generated at:** 2026-06-02T00:11:42.849Z
+- **Output directory:** /Users/kji/dev/axiom-data-infrastructure/output/runs/20260602T001142Z_dirty_aec_ticket
+- **Generated at:** 2026-06-02T00:11:42.281Z
 - **Engine version:** 0.1.0
 
 ## Summary
