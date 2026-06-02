@@ -1,5 +1,69 @@
 # axiom-data-infrastructure
 
+## Architecture Overview
+
+ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering system for grading and cleaning messy AEC operational data. It combines a TypeScript operator CLI with a Python FastAPI backend so data can be ingested, repaired, validated, scored, and reviewed through both batch workflows and API calls.
+
+### Major components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| TypeScript operator CLI | `src/` | Reads CSV files, runs the LangGraph-style pipeline, writes JSON/Markdown reports, and supports operator overrides |
+| Python FastAPI backend | `backend/` | Exposes grading APIs for JSON records and CSV upload |
+| Pydantic validation layer | `backend/core/schemas.py` | Strict request/response contracts and typed engine artifacts |
+| Agent/state-machine engine | `backend/engine/`, `backend/agents/` | Analyzer, Transformer, and Auditor nodes orchestrated with explicit workflow state |
+| Deterministic validation layer | `backend/engine/validation.py` | Final guardrail that enforces required AEC fields before success |
+| Dead-letter handling | `failed_records` in API/CLI state | Captures unrecoverable rows with original raw data and failure reasons |
+| Operator reporting and run history | `output/runs/`, `operator/` | Per-run reports, manifests, run index, and optional human decision overrides |
+
+Both runtimes preserve raw input, record repairs and anomalies, compute an explainable health score, and surface row-level outcomes for operator review.
+
+### State-machine flow
+
+```text
+Ingestion
+  → Analyzer
+  → Transformer
+  → Auditor
+  → Self-correction loop (max 2 retries)
+  → Deterministic final validation
+  → Response / report
+```
+
+**Ingestion** accepts CSV via the TypeScript CLI or JSON/CSV via the Python API (`POST /grade/aec`, `POST /grade/aec/upload`).
+
+**Analyzer** detects missing or malformed fields and records anomalies.
+
+**Transformer** applies deterministic repairs (date normalization, placeholder fills, quantity correction) with audit metadata.
+
+**Auditor** checks cleaned output quality and routes failures back to Transformer with a `correction_instruction` when retries remain.
+
+**Deterministic final validation** verifies exact AEC schema requirements before the run is marked successful.
+
+**Response/report** returns structured API output or writes operator artifacts (`langgraph-report.json`, `clean-vs-dirty-report.md`, `manifest.json`, run index entries). Unrecoverable rows are dead-lettered into `failed_records`; when that list is not empty, `validation_passed` is `false`.
+
+Structured logging records each node transition without emitting raw customer field values.
+
+### Why this demonstrates AI/Data Engineering skills
+
+- **Schema design** — Canonical AEC fields, profile-based column aliases, and Pydantic models for API and engine state
+- **Data validation** — Input checks, agent-level auditing, and deterministic final validation before acceptance
+- **Stateful workflows** — Explicit state (`raw_records`, `cleaned_records`, `repairs`, `anomalies`, `processing_history`, `retry_count`)
+- **API design** — JSON and CSV ingestion paths sharing one grading engine
+- **Observability** — Structured logs, processing history, health score explanations, and run metadata
+- **Testing** — TypeScript and Python test suites covering clean, repairable, unrecoverable, retry, and upload paths
+- **Failed-record handling** — Dead-letter queue for rows that cannot be safely repaired
+- **Human-in-the-loop operations** — Operator overrides, review-flagged repairs, and Markdown reports for manual adjudication
+
+### Portfolio Highlights
+
+- Built a dual-runtime ADI platform: TypeScript operator CLI plus Python FastAPI backend on a shared AEC grading domain
+- Implemented a multi-agent state machine (Analyzer → Transformer → Auditor) with bounded self-correction and deterministic final validation
+- Designed strict Pydantic schemas and explainable health scoring for portfolio-ready API responses
+- Added dead-letter handling for unrecoverable records while preserving valid rows in mixed batches
+- Supported JSON and CSV ingestion through a single grading engine with structured logging and full test coverage
+- Delivered operator-facing run history, manifests, and override workflows for human review of repaired data
+
 ## Experimental TypeScript LangGraph Engine
 
 This branch includes an experimental multi-agent data cleaning pipeline built with LangGraph for TypeScript. It runs alongside the Python MVP and is intended for iteration—not production replacement yet.
