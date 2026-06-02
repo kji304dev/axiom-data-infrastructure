@@ -227,3 +227,4 @@ __marimo__/
 output/report.json
 output/*.json
 output/*.md
+output/runs/
