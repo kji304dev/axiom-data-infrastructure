@@ -60,7 +60,7 @@ describe("runManifest", () => {
       validationPassed: false,
     } as ADIGraphState;
 
-    const manifestPath = createAndWriteRunManifest(outputDirectory, state, {
+    const { manifestPath } = createAndWriteRunManifest(outputDirectory, state, {
       jsonPath,
       markdownPath,
     });

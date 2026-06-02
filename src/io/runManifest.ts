@@ -55,7 +55,7 @@ export function createAndWriteRunManifest(
   outputDirectory: string,
   state: ADIGraphState,
   reportPaths: { jsonPath: string; markdownPath: string },
-): string {
+): { manifestPath: string; manifest: RunManifest } {
   if (!state.runMetadata) {
     throw new Error("runMetadata is required to write manifest.json");
   }
@@ -70,5 +70,5 @@ export function createAndWriteRunManifest(
   });
 
   writeRunManifest(manifestPath, manifest);
-  return manifestPath;
+  return { manifestPath, manifest };
 }

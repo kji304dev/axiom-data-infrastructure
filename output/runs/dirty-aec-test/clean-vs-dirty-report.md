@@ -2,10 +2,10 @@
 
 ## Run Metadata
 
-- **Run ID:** 20260601T204722Z_dirty_aec_ticket
+- **Run ID:** 20260602T000940Z_dirty_aec_ticket
 - **Input file:** /Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv
 - **Output directory:** /Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test
-- **Generated at:** 2026-06-01T20:47:22.311Z
+- **Generated at:** 2026-06-02T00:09:40.713Z
 - **Engine version:** 0.1.0
 
 ## Summary

@@ -1,0 +1,34 @@
+{
+  "runs": [
+    {
+      "runId": "20260602T000734Z_dirty_aec_ticket",
+      "inputFile": "/Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv",
+      "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test",
+      "manifestPath": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test/manifest.json",
+      "healthScore": 58,
+      "validationPassed": false,
+      "generatedAt": "2026-06-02T00:07:34.918Z",
+      "engineVersion": "0.1.0"
+    },
+    {
+      "runId": "20260602T000803Z_dirty_aec_ticket",
+      "inputFile": "/Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv",
+      "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test",
+      "manifestPath": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test/manifest.json",
+      "healthScore": 58,
+      "validationPassed": false,
+      "generatedAt": "2026-06-02T00:08:03.238Z",
+      "engineVersion": "0.1.0"
+    },
+    {
+      "runId": "20260602T000940Z_dirty_aec_ticket",
+      "inputFile": "/Users/kji/dev/axiom-data-infrastructure/samples/dirty_aec_ticket.csv",
+      "outputDirectory": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test",
+      "manifestPath": "/Users/kji/dev/axiom-data-infrastructure/output/runs/dirty-aec-test/manifest.json",
+      "healthScore": 58,
+      "validationPassed": false,
+      "generatedAt": "2026-06-02T00:09:40.713Z",
+      "engineVersion": "0.1.0"
+    }
+  ]
+}

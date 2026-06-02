@@ -45,6 +45,8 @@ Reports are written to:
 - `<output-dir>/clean-vs-dirty-report.md`
 - `<output-dir>/manifest.json` (run index metadata for operator traceability)
 
+Each run is also appended to the central operator index at `output/runs/index.json` (deduplicated by `runId`).
+
 The output directory is created automatically if it does not exist.
 
 ### Typecheck
@@ -62,6 +64,7 @@ By default, reports are written to `output/`:
 | `output/langgraph-report.json` | Full workflow state (raw data, cleaned data, repairs, anomalies, scores) |
 | `output/clean-vs-dirty-report.md` | Human-readable summary with repairs and customer-facing anomalies |
 | `output/manifest.json` | Run index metadata (paths, health score, validation status, timestamps) |
+| `output/runs/index.json` | Central index of all operator grading runs |
 
 Use `--output-dir <path>` to write reports to a different directory (see **Run** above).
 
