@@ -33,6 +33,17 @@ def _validator_messages(payload: dict) -> list[str]:
     ]
 
 
+def test_health_endpoint() -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "service": "adi-backend",
+        "version": "0.1.0",
+    }
+
+
 def _expected_final_score(explanation: dict) -> float:
     score = (
         explanation["starting_score"]

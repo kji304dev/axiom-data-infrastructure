@@ -269,7 +269,7 @@ A production-oriented Python backend lives under `backend/` and runs alongside t
 
 | Layer | Path | Role |
 |-------|------|------|
-| API | `backend/api/` | FastAPI app and routes (`POST /grade/aec`, `POST /grade/aec/upload`) |
+| API | `backend/api/` | FastAPI app and routes (`GET /health`, `POST /grade/aec`, `POST /grade/aec/upload`) |
 | Core | `backend/core/` | Pydantic schemas, config, structured logging |
 | Engine | `backend/engine/` | State-machine orchestration, validation, scoring |
 | Agents | `backend/agents/` | Analyzer, Transformer, Auditor (isolated modules) |
@@ -303,7 +303,17 @@ pytest backend/tests
 uvicorn backend.api.app:app --reload --port 8000
 ```
 
-### Endpoint
+### Endpoints
+
+**`GET /health`**
+
+Liveness check for deployments and local development:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Returns `{"status": "ok", "service": "adi-backend", "version": "0.1.0"}`.
 
 **`POST /grade/aec`**
 

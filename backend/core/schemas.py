@@ -81,6 +81,14 @@ class AECRecord(BaseModel):
     job_site: str
 
 
+class HealthResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    status: str
+    service: str
+    version: str
+
+
 class GradeAECRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
