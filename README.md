@@ -426,6 +426,52 @@ For a dirty batch such as `samples/dirty_aec_ticket.csv`:
 
 Upload validation errors return HTTP 400 with messages such as `File must be present`, `Filename must end with .csv`, or `File must not be empty`.
 
+## Render Deployment
+
+The Python FastAPI backend can be deployed on [Render](https://render.com) using the root `render.yaml` blueprint.
+
+### Blueprint
+
+`render.yaml` defines a Python web service that:
+
+- Installs dependencies with `pip install -r backend/requirements.txt`
+- Starts with `uvicorn backend.api.app:app --host 0.0.0.0 --port $PORT`
+- Uses `/health` for Render health checks
+
+### Deploy steps
+
+1. Push this repository to GitHub.
+2. In the Render Dashboard, connect your GitHub account and select this repository.
+3. Create a **Blueprint** (or new **Web Service**) from `render.yaml` at the repo root.
+4. Wait for the deploy to finish, then verify the health check:
+
+```bash
+curl https://<your-service>.onrender.com/health
+```
+
+Expected response:
+
+```json
+{"status": "ok", "service": "adi-backend", "version": "0.1.0"}
+```
+
+5. Test JSON grading:
+
+```bash
+curl -X POST "https://<your-service>.onrender.com/grade/aec" \
+  -H "Content-Type: application/json" \
+  -d '{"records":[{"ticket_id":"1002","date":"05/02/26","customer":"Acme","material":"Gravel","quantity":-4,"unit":"tons","job_site":"North Yard"}]}'
+```
+
+6. Test CSV upload:
+
+```bash
+curl -X POST "https://<your-service>.onrender.com/grade/aec/upload" \
+  -F "file=@samples/dirty_aec_ticket.csv"
+```
+
+Replace `<your-service>` with your Render service hostname. The TypeScript operator CLI is not deployed by this blueprint; run it locally or deploy it separately if needed.
+
 ### Note
 
 This TypeScript engine is currently on the **`langgraph-typescript-engine`** branch and should **not** replace the Python MVP yet. The Python validator in `app/validator.py` remains the baseline for comparison.

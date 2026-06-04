@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: adi-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
