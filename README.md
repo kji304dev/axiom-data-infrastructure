@@ -291,6 +291,35 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
+## Environment Configuration
+
+ADI uses a small set of environment variables for the Python backend. Copy the template for local development:
+
+```bash
+cp .env.example .env
+```
+
+Do **not** commit `.env` to Git. It is listed in `.gitignore` alongside `.envrc` for direnv users. Keep secrets and environment-specific values out of the repository.
+
+Load variables into your shell before starting the API (example):
+
+```bash
+set -a && source .env && set +a
+uvicorn backend.api.app:app --reload --port 8000
+```
+
+On Render, set the same keys in the service **Environment** settings instead of using a `.env` file.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `APP_ENV` | `development` | Deployment environment label (`development`, `staging`, `production`) |
+| `LOG_LEVEL` | `INFO` | Structured log verbosity for the Python engine (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `ADI_ENGINE_VERSION` | `0.1.0` | Reported by `GET /health` and available for future release tagging |
+
+These variables are intentionally lightweight today. The naming leaves room to add database URLs, API keys, and feature flags later without restructuring configuration.
+
+Legacy note: `ADI_LOG_LEVEL` is still accepted as a fallback if `LOG_LEVEL` is unset.
+
 ### Test
 
 ```bash

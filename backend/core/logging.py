@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from typing import Any, Literal
 
-LOG_LEVEL = os.getenv("ADI_LOG_LEVEL", "INFO").upper()
+from backend.core.config import LOG_LEVEL
+
 ENGINE_LOGGER_NAME = "adi.backend.engine"
 
 WorkflowNode = Literal["analyzer", "transformer", "auditor", "validator", "complete"]
