@@ -332,6 +332,16 @@ pytest backend/tests
 uvicorn backend.api.app:app --reload --port 8000
 ```
 
+### Smoke test
+
+After starting the API locally or deploying to a remote host, validate the three core endpoints:
+
+```bash
+python backend/scripts/smoke_test.py --base-url http://127.0.0.1:8000
+```
+
+The script checks `GET /health`, `POST /grade/aec` with one repairable record, and `POST /grade/aec/upload` using `samples/dirty_aec_ticket.csv`. It prints `PASS`/`FAIL` for each check and exits with a non-zero status if any check fails. Response summaries include counts and scores only — not full customer record payloads.
+
 ### Endpoints
 
 **`GET /health`**
