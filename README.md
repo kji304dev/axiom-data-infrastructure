@@ -1,5 +1,22 @@
 # axiom-data-infrastructure
 
+## Links
+
+- **Live API:** [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com)
+- **API Docs:** [https://axiom-data-infrastructure.onrender.com/docs](https://axiom-data-infrastructure.onrender.com/docs)
+- **Health Check:** [https://axiom-data-infrastructure.onrender.com/health](https://axiom-data-infrastructure.onrender.com/health)
+
+## Verification
+
+```bash
+pytest backend/tests
+npm test
+npm run typecheck
+python backend/scripts/smoke_test.py --base-url https://axiom-data-infrastructure.onrender.com
+```
+
+Generated run artifacts under `output/` are intentionally ignored by Git (see `.gitignore`).
+
 ## Portfolio Summary
 
 ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering system for cleaning and grading messy AEC operational data. It ingests ticket-style CSV and JSON records, applies a multi-agent repair workflow with deterministic guardrails, and returns scored, explainable results suitable for operator review and API integration.
@@ -17,8 +34,6 @@ ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering syst
 - Structured logging
 - TypeScript operator CLI
 - Render deployment
-
-**Live Demo:** [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com) · [API docs](https://axiom-data-infrastructure.onrender.com/docs)
 
 ## Architecture Overview
 
@@ -237,7 +252,7 @@ All runs are indexed at:
 
 - `output/runs/index.json`
 
-Do **not** commit generated output files. They are local run artifacts.
+Generated files under `output/` are gitignored; see **Verification** above.
 
 ### 8. Operator overrides
 
@@ -340,12 +355,6 @@ These variables are intentionally lightweight today. The naming leaves room to a
 
 Legacy note: `ADI_LOG_LEVEL` is still accepted as a fallback if `LOG_LEVEL` is unset.
 
-### Test
-
-```bash
-pytest backend/tests
-```
-
 ### Run locally
 
 ```bash
@@ -354,7 +363,7 @@ uvicorn backend.api.app:app --reload --port 8000
 
 ### Smoke test
 
-After starting the API locally or deploying to a remote host, validate the three core endpoints:
+Validate the three core API endpoints locally or against the deployed service (see **Verification**):
 
 ```bash
 python backend/scripts/smoke_test.py --base-url http://127.0.0.1:8000
@@ -363,8 +372,6 @@ python backend/scripts/smoke_test.py --base-url http://127.0.0.1:8000
 The script checks `GET /health`, `POST /grade/aec` with one repairable record, and `POST /grade/aec/upload` using `samples/dirty_aec_ticket.csv`. It prints `PASS`/`FAIL` for each check and exits with a non-zero status if any check fails. Response summaries include counts and scores only — not full customer record payloads.
 
 ### Endpoints
-
-Production base URL: [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com)
 
 **`GET /`**
 
@@ -510,7 +517,7 @@ Upload validation errors return HTTP 400 with messages such as `File must be pre
 
 ## Render Deployment
 
-The Python FastAPI backend is deployed at [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com) and can also be deployed on [Render](https://render.com) using the root `render.yaml` blueprint.
+The Python FastAPI backend is deployed at the **Live API** link above and can also be redeployed on [Render](https://render.com) using the root `render.yaml` blueprint.
 
 ### Blueprint
 
