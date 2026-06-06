@@ -33,6 +33,20 @@ def _validator_messages(payload: dict) -> list[str]:
     ]
 
 
+def test_root_endpoint() -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "service": "adi-backend",
+        "status": "ok",
+        "health": "/health",
+        "docs": "/docs",
+        "json_endpoint": "/grade/aec",
+        "csv_upload_endpoint": "/grade/aec/upload",
+    }
+
+
 def test_health_endpoint() -> None:
     response = client.get("/health")
 

@@ -89,6 +89,17 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class RootResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    service: str
+    status: str
+    health: str
+    docs: str
+    json_endpoint: str
+    csv_upload_endpoint: str
+
+
 class GradeAECRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 

@@ -1,11 +1,28 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from backend.core.config import ADI_ENGINE_VERSION
-from backend.core.schemas import GradeAECRequest, GradeAECResponse, HealthResponse
+from backend.core.schemas import (
+    GradeAECRequest,
+    GradeAECResponse,
+    HealthResponse,
+    RootResponse,
+)
 from backend.engine.graph import run_aec_grading
 from backend.io.csv_parser import CsvParseError, parse_csv_records
 
 router = APIRouter()
+
+
+@router.get("/", response_model=RootResponse)
+def root() -> RootResponse:
+    return RootResponse(
+        service="adi-backend",
+        status="ok",
+        health="/health",
+        docs="/docs",
+        json_endpoint="/grade/aec",
+        csv_upload_endpoint="/grade/aec/upload",
+    )
 
 
 @router.get("/health", response_model=HealthResponse)

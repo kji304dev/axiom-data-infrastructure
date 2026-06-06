@@ -269,7 +269,7 @@ A production-oriented Python backend lives under `backend/` and runs alongside t
 
 | Layer | Path | Role |
 |-------|------|------|
-| API | `backend/api/` | FastAPI app and routes (`GET /health`, `POST /grade/aec`, `POST /grade/aec/upload`) |
+| API | `backend/api/` | FastAPI app and routes (`GET /`, `GET /health`, `POST /grade/aec`, `POST /grade/aec/upload`) |
 | Core | `backend/core/` | Pydantic schemas, config, structured logging |
 | Engine | `backend/engine/` | State-machine orchestration, validation, scoring |
 | Agents | `backend/agents/` | Analyzer, Transformer, Auditor (isolated modules) |
@@ -343,6 +343,29 @@ python backend/scripts/smoke_test.py --base-url http://127.0.0.1:8000
 The script checks `GET /health`, `POST /grade/aec` with one repairable record, and `POST /grade/aec/upload` using `samples/dirty_aec_ticket.csv`. It prints `PASS`/`FAIL` for each check and exits with a non-zero status if any check fails. Response summaries include counts and scores only — not full customer record payloads.
 
 ### Endpoints
+
+Production base URL: [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com)
+
+**`GET /`**
+
+Friendly service index with links to the main API routes:
+
+```bash
+curl http://127.0.0.1:8000/
+```
+
+Returns:
+
+```json
+{
+  "service": "adi-backend",
+  "status": "ok",
+  "health": "/health",
+  "docs": "/docs",
+  "json_endpoint": "/grade/aec",
+  "csv_upload_endpoint": "/grade/aec/upload"
+}
+```
 
 **`GET /health`**
 
@@ -467,7 +490,7 @@ Upload validation errors return HTTP 400 with messages such as `File must be pre
 
 ## Render Deployment
 
-The Python FastAPI backend can be deployed on [Render](https://render.com) using the root `render.yaml` blueprint.
+The Python FastAPI backend is deployed at [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com) and can also be deployed on [Render](https://render.com) using the root `render.yaml` blueprint.
 
 ### Blueprint
 
@@ -482,10 +505,11 @@ The Python FastAPI backend can be deployed on [Render](https://render.com) using
 1. Push this repository to GitHub.
 2. In the Render Dashboard, connect your GitHub account and select this repository.
 3. Create a **Blueprint** (or new **Web Service**) from `render.yaml` at the repo root.
-4. Wait for the deploy to finish, then verify the health check:
+4. Wait for the deploy to finish, then verify the service index and health check:
 
 ```bash
-curl https://<your-service>.onrender.com/health
+curl https://axiom-data-infrastructure.onrender.com/
+curl https://axiom-data-infrastructure.onrender.com/health
 ```
 
 Expected response:
@@ -497,7 +521,7 @@ Expected response:
 5. Test JSON grading:
 
 ```bash
-curl -X POST "https://<your-service>.onrender.com/grade/aec" \
+curl -X POST "https://axiom-data-infrastructure.onrender.com/grade/aec" \
   -H "Content-Type: application/json" \
   -d '{"records":[{"ticket_id":"1002","date":"05/02/26","customer":"Acme","material":"Gravel","quantity":-4,"unit":"tons","job_site":"North Yard"}]}'
 ```
@@ -505,11 +529,11 @@ curl -X POST "https://<your-service>.onrender.com/grade/aec" \
 6. Test CSV upload:
 
 ```bash
-curl -X POST "https://<your-service>.onrender.com/grade/aec/upload" \
+curl -X POST "https://axiom-data-infrastructure.onrender.com/grade/aec/upload" \
   -F "file=@samples/dirty_aec_ticket.csv"
 ```
 
-Replace `<your-service>` with your Render service hostname. The TypeScript operator CLI is not deployed by this blueprint; run it locally or deploy it separately if needed.
+The TypeScript operator CLI is not deployed by this blueprint; run it locally or deploy it separately if needed.
 
 ### Note
 
