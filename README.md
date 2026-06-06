@@ -1,5 +1,25 @@
 # axiom-data-infrastructure
 
+## Portfolio Summary
+
+ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering system for cleaning and grading messy AEC operational data. It ingests ticket-style CSV and JSON records, applies a multi-agent repair workflow with deterministic guardrails, and returns scored, explainable results suitable for operator review and API integration.
+
+**Technical highlights**
+
+- FastAPI backend
+- Pydantic validation
+- JSON and CSV upload endpoints
+- Analyzer / Transformer / Auditor workflow
+- Self-correction retry loop
+- `failed_records` dead-letter handling
+- Deterministic final validation
+- Health scoring
+- Structured logging
+- TypeScript operator CLI
+- Render deployment
+
+**Live Demo:** [https://axiom-data-infrastructure.onrender.com](https://axiom-data-infrastructure.onrender.com) · [API docs](https://axiom-data-infrastructure.onrender.com/docs)
+
 ## Architecture Overview
 
 ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering system for grading and cleaning messy AEC operational data. It combines a TypeScript operator CLI with a Python FastAPI backend so data can be ingested, repaired, validated, scored, and reviewed through both batch workflows and API calls.
