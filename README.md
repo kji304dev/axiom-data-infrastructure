@@ -516,6 +516,20 @@ For a dirty batch such as `samples/dirty_aec_ticket.csv`:
 
 Upload validation errors return HTTP 400 with messages such as `File must be present`, `Filename must end with .csv`, or `File must not be empty`.
 
+**`GET /runs`**
+
+Read-only run history from the local backend metadata index (`local_artifacts/run_index.json`):
+
+```bash
+curl http://127.0.0.1:8000/runs
+```
+
+Returns `{"runs": [...]}` with metadata entries (`run_id`, `created_at`, `input_type`, `record_count`, `artifact_uri`, `health_score`, `validation_passed`, `failed_record_count`). When no index exists yet, returns `{"runs": []}`.
+
+**`GET /runs/{run_id}`**
+
+Fetch one run metadata entry by ID. Returns HTTP 404 with `{"detail": "Run not found"}` when the run is missing.
+
 ## Render Deployment
 
 The Python FastAPI backend is deployed at the **Live API** link above and can also be redeployed on [Render](https://render.com) using the root `render.yaml` blueprint.
@@ -571,7 +585,7 @@ This TypeScript engine is currently on the **`langgraph-typescript-engine`** bra
 
 ADI is deployed on Render today. This section outlines a practical AWS-native evolution path aligned with Data Engineer Associate patterns. **Nothing below is implemented yet**—it is a roadmap for how the current design could map to AWS services without changing the core grading logic.
 
-Run artifacts are already abstracted behind `backend/storage/` (`StorageBackend` with `LocalStorageBackend` writing to `local_artifacts/`). A future `S3StorageBackend` can implement the same interface without changing grading logic. Backend run metadata is appended to `local_artifacts/run_index.json` today and is designed to map to **DynamoDB** later.
+Run artifacts are already abstracted behind `backend/storage/` (`StorageBackend` with `LocalStorageBackend` writing to `local_artifacts/`). A future `S3StorageBackend` can implement the same interface without changing grading logic. Backend run metadata is appended to `local_artifacts/run_index.json` today, exposed through read-only `GET /runs` and `GET /runs/{run_id}`, and is designed to map to **DynamoDB** later without changing the product workflow.
 
 ### Current deployment
 

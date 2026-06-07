@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from backend.core.schemas import GradeAECResponse
 from backend.storage.base import StorageBackend
@@ -23,6 +23,23 @@ class RunIndexEntry(BaseModel):
     health_score: float
     validation_passed: bool
     failed_record_count: int
+
+
+class RunHistoryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    runs: list[RunIndexEntry]
+
+
+def list_run_index_entries(storage: StorageBackend) -> list[dict]:
+    return [entry.model_dump(mode="json") for entry in load_run_index(storage)]
+
+
+def get_run_index_entry(storage: StorageBackend, run_id: str) -> dict | None:
+    for entry in load_run_index(storage):
+        if entry.run_id == run_id:
+            return entry.model_dump(mode="json")
+    return None
 
 
 def build_run_index_entry(

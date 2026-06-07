@@ -17,9 +17,13 @@ from backend.storage.artifacts import persist_grade_result
 from backend.storage.base import StorageBackend
 from backend.storage.deps import get_storage_backend
 from backend.storage.run_index import (
+    RunHistoryResponse,
+    RunIndexEntry,
     RunInputType,
     append_run_index_entry,
     build_run_index_entry,
+    get_run_index_entry,
+    list_run_index_entries,
 )
 
 router = APIRouter()
@@ -42,6 +46,26 @@ def _grade_and_persist(
         ),
     )
     return enriched
+
+
+@router.get("/runs", response_model=RunHistoryResponse)
+def list_runs(
+    storage: StorageBackend = Depends(get_storage_backend),
+) -> RunHistoryResponse:
+    return RunHistoryResponse(
+        runs=[RunIndexEntry.model_validate(entry) for entry in list_run_index_entries(storage)]
+    )
+
+
+@router.get("/runs/{run_id}", response_model=RunIndexEntry)
+def get_run(
+    run_id: str,
+    storage: StorageBackend = Depends(get_storage_backend),
+) -> RunIndexEntry:
+    entry = get_run_index_entry(storage, run_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return RunIndexEntry.model_validate(entry)
 
 
 @router.get("/", response_model=RootResponse)
