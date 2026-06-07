@@ -21,6 +21,28 @@ def build_artifact_uri(artifact_path: str, *, scheme: str = LOCAL_ARTIFACT_URI_S
     return f"{scheme}://{artifact_path}"
 
 
+def artifact_path_from_uri(artifact_uri: str) -> str:
+    scheme, separator, path = artifact_uri.partition("://")
+    if not scheme or not separator or not path:
+        raise ValueError(f"invalid artifact_uri: {artifact_uri}")
+    return path
+
+
+def load_artifact_json(storage: StorageBackend, artifact_uri: str) -> dict | None:
+    try:
+        artifact_path = artifact_path_from_uri(artifact_uri)
+    except ValueError:
+        return None
+
+    if not storage.exists(artifact_path):
+        return None
+
+    try:
+        return storage.read_json(artifact_path)
+    except (FileNotFoundError, ValueError):
+        return None
+
+
 def persist_grade_result(
     storage: StorageBackend,
     result: GradeAECResponse,

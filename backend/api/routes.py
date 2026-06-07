@@ -13,7 +13,7 @@ from backend.core.schemas import (
 )
 from backend.engine.graph import run_aec_grading
 from backend.io.csv_parser import CsvParseError, parse_csv_records
-from backend.storage.artifacts import persist_grade_result
+from backend.storage.artifacts import load_artifact_json, persist_grade_result
 from backend.storage.base import StorageBackend
 from backend.storage.deps import get_storage_backend
 from backend.storage.run_index import (
@@ -55,6 +55,22 @@ def list_runs(
     return RunHistoryResponse(
         runs=[RunIndexEntry.model_validate(entry) for entry in list_run_index_entries(storage)]
     )
+
+
+@router.get("/runs/{run_id}/artifact", response_model=GradeAECResponse)
+def get_run_artifact(
+    run_id: str,
+    storage: StorageBackend = Depends(get_storage_backend),
+) -> GradeAECResponse:
+    entry = get_run_index_entry(storage, run_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    artifact = load_artifact_json(storage, entry["artifact_uri"])
+    if artifact is None:
+        raise HTTPException(status_code=410, detail="Run artifact not found")
+
+    return GradeAECResponse.model_validate(artifact)
 
 
 @router.get("/runs/{run_id}", response_model=RunIndexEntry)
