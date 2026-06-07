@@ -565,3 +565,38 @@ The TypeScript operator CLI is not deployed by this blueprint; run it locally or
 ### Note
 
 This TypeScript engine is currently on the **`langgraph-typescript-engine`** branch and should **not** replace the Python MVP yet. The Python validator in `app/validator.py` remains the baseline for comparison.
+
+## AWS Data Engineering Roadmap
+
+ADI is deployed on Render today. This section outlines a practical AWS-native evolution path aligned with Data Engineer Associate patterns. **Nothing below is implemented yet**—it is a roadmap for how the current design could map to AWS services without changing the core grading logic.
+
+### Current deployment
+
+- Render-hosted FastAPI backend ([Live API](https://axiom-data-infrastructure.onrender.com))
+- JSON grading via `POST /grade/aec` and CSV upload via `POST /grade/aec/upload`
+- Local and deployed verification via `pytest backend/tests`, `npm test`, and `backend/scripts/smoke_test.py`
+
+### Future AWS architecture mapping
+
+| ADI concept today | Planned AWS service | Role |
+|-------------------|---------------------|------|
+| CSV upload payloads | **S3** | Store raw uploads and cleaned output artifacts |
+| Public HTTP API | **API Gateway** or **Application Load Balancer** | Route client requests to compute |
+| Grading engine execution | **Lambda** or **ECS/Fargate** | Run validation, cleaning, and scoring workloads |
+| `failed_records` dead letters | **SQS** dead-letter queue | Capture unrecoverable rows for replay or operator review |
+| Run metadata and health scores | **DynamoDB** | Persist run IDs, timestamps, scores, and status |
+| Structured logging | **CloudWatch** Logs, metrics, and alarms | Operational visibility and alerting |
+| Canonical AEC schema (later) | **Glue Data Catalog** | Track schema versions and dataset lineage |
+| Analyzer → Transformer → Auditor flow (later) | **Step Functions** | Orchestrate the state machine with explicit retries and branching |
+
+### Workflow mapping
+
+The current **Analyzer → Transformer → Auditor** pipeline with a bounded self-correction loop maps naturally to **Step Functions** or event-driven orchestration: each agent becomes a state (or Lambda task), retry routing becomes a conditional transition, and deterministic final validation becomes a terminal guard step before success.
+
+### Dead-letter mapping
+
+Today, unrecoverable rows land in `failed_records` with the original raw row and a failure reason. On AWS, that pattern maps cleanly to an **SQS DLQ** for async replay and alerting, or to an **S3 failed-record prefix** (for example `s3://bucket/failed/`) for durable batch inspection—mirroring the API’s dead-letter behavior without rewriting the grading rules.
+
+### Certification alignment
+
+This roadmap supports hands-on study for the **AWS Certified Data Engineer – Associate** exam: ingestion (S3), API front doors (API Gateway/ALB), compute (Lambda/ECS), messaging (SQS), operational data stores (DynamoDB), observability (CloudWatch), cataloging (Glue), and orchestration (Step Functions)—while keeping ADI’s existing Pydantic contracts and agent boundaries intact during a future migration.
