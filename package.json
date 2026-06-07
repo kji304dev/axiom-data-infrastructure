@@ -6,9 +6,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
+    "dev:frontend": "npm run dev --prefix frontend",
     "runs": "tsx src/cli/runs.ts",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run && npm test --prefix frontend",
+    "typecheck": "tsc --noEmit && npm run typecheck --prefix frontend"
   },
   "dependencies": {
     "@langchain/core": "^0.3.66",

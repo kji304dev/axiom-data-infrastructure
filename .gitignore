@@ -230,3 +230,6 @@ output/report.json
 output/*.json
 output/*.md
 local_artifacts/
+frontend/node_modules/
+frontend/dist/
+frontend/.env

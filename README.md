@@ -45,6 +45,7 @@ ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering syst
 |-----------|----------|---------|
 | TypeScript operator CLI | `src/` | Reads CSV files, runs the LangGraph-style pipeline, writes JSON/Markdown reports, and supports operator overrides |
 | Python FastAPI backend | `backend/` | Exposes grading APIs for JSON records and CSV upload |
+| React demo frontend | `frontend/` | Lightweight grading demo with Run History over backend metadata and artifacts |
 | Pydantic validation layer | `backend/core/schemas.py` | Strict request/response contracts and typed engine artifacts |
 | Agent/state-machine engine | `backend/engine/`, `backend/agents/` | Analyzer, Transformer, and Auditor nodes orchestrated with explicit workflow state |
 | Deterministic validation layer | `backend/engine/validation.py` | Final guardrail that enforces required AEC fields before success |
@@ -361,6 +362,23 @@ Legacy note: `ADI_LOG_LEVEL` is still accepted as a fallback if `LOG_LEVEL` is u
 ```bash
 uvicorn backend.api.app:app --reload --port 8000
 ```
+
+### Frontend demo (Run History)
+
+The `frontend/` app provides a lightweight grading demo with a **Run History** section that reads saved backend runs via:
+
+- `GET /runs`
+- `GET /runs/{run_id}/artifact`
+
+Run metadata is stored locally in `local_artifacts/run_index.json` during MVP development. Result artifacts use the `StorageBackend` abstraction. Later, metadata can map to **DynamoDB** and artifacts to **S3** without changing the demo workflow.
+
+```bash
+cd frontend && npm install
+cp .env.example .env
+npm run dev
+```
+
+In another terminal, start the FastAPI backend on port 8000. The frontend defaults to `http://127.0.0.1:8000` (override with `VITE_API_BASE_URL`).
 
 ### Smoke test
 
