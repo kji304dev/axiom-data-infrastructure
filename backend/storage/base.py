@@ -13,5 +13,9 @@ class StorageBackend(ABC):
         """Persist text content at the given relative path."""
 
     @abstractmethod
+    def read_json(self, path: str) -> dict:
+        """Load a JSON object from the given relative path."""
+
+    @abstractmethod
     def exists(self, path: str) -> bool:
         """Return whether an object exists at the given relative path."""

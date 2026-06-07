@@ -39,5 +39,14 @@ class LocalStorageBackend(StorageBackend):
         target.write_text(content, encoding="utf-8")
         return str(target)
 
+    def read_json(self, path: str) -> dict:
+        target = self._resolve_path(path)
+        if not target.is_file():
+            raise FileNotFoundError(f"JSON object not found: {path}")
+        payload = json.loads(target.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError(f"expected JSON object at {path}")
+        return payload
+
     def exists(self, path: str) -> bool:
         return self._resolve_path(path).exists()

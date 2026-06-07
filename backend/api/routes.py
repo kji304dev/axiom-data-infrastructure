@@ -16,6 +16,11 @@ from backend.io.csv_parser import CsvParseError, parse_csv_records
 from backend.storage.artifacts import persist_grade_result
 from backend.storage.base import StorageBackend
 from backend.storage.deps import get_storage_backend
+from backend.storage.run_index import (
+    RunInputType,
+    append_run_index_entry,
+    build_run_index_entry,
+)
 
 router = APIRouter()
 
@@ -23,9 +28,20 @@ router = APIRouter()
 def _grade_and_persist(
     records: list[dict[str, Any]],
     storage: StorageBackend,
+    *,
+    input_type: RunInputType,
 ) -> GradeAECResponse:
     result = run_aec_grading(records)
-    return persist_grade_result(storage, result)
+    enriched = persist_grade_result(storage, result)
+    append_run_index_entry(
+        storage,
+        build_run_index_entry(
+            enriched,
+            input_type=input_type,
+            record_count=len(records),
+        ),
+    )
+    return enriched
 
 
 @router.get("/", response_model=RootResponse)
@@ -54,7 +70,7 @@ def grade_aec(
     payload: GradeAECRequest,
     storage: StorageBackend = Depends(get_storage_backend),
 ) -> GradeAECResponse:
-    return _grade_and_persist(payload.records, storage)
+    return _grade_and_persist(payload.records, storage, input_type="json")
 
 
 @router.post("/grade/aec/upload", response_model=GradeAECResponse)
@@ -82,4 +98,4 @@ async def grade_aec_upload(
             status_code=400, detail="File must be valid UTF-8 CSV"
         ) from error
 
-    return _grade_and_persist(records, storage)
+    return _grade_and_persist(records, storage, input_type="csv_upload")

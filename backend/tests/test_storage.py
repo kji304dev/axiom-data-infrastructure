@@ -41,6 +41,13 @@ def test_exists_returns_false_for_missing_path(tmp_path: Path) -> None:
     assert storage.exists("missing/report.json") is False
 
 
+def test_read_json_loads_written_payload(tmp_path: Path) -> None:
+    storage = LocalStorageBackend(base_dir=tmp_path)
+    storage.write_json("index/state.json", {"runs": [{"run_id": "abc"}]})
+
+    assert storage.read_json("index/state.json") == {"runs": [{"run_id": "abc"}]}
+
+
 def test_rejects_absolute_paths(tmp_path: Path) -> None:
     storage = LocalStorageBackend(base_dir=tmp_path)
 

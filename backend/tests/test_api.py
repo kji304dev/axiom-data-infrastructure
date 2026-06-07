@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from backend.engine.scoring import (
     STARTING_SCORE,
 )
 from backend.storage.local import LocalStorageBackend
+from backend.storage.run_index import RUN_INDEX_PATH, load_run_index
 
 client = TestClient(app)
 
@@ -210,6 +212,12 @@ def test_grade_aec_upload_dirty_csv_with_failed_records() -> None:
     assert any("dead-lettered records" in message for message in validator_messages)
 
 
+def _load_index_entries(storage_root: Path) -> list[dict]:
+    return json.loads((storage_root / RUN_INDEX_PATH).read_text(encoding="utf-8"))[
+        "runs"
+    ]
+
+
 def test_grade_aec_persists_result_artifact(
     artifact_client: tuple[TestClient, Path],
 ) -> None:
@@ -239,6 +247,14 @@ def test_grade_aec_persists_result_artifact(
     assert artifact_file.is_file()
     assert artifact_file.read_text(encoding="utf-8")
 
+    index_entries = _load_index_entries(storage_root)
+    assert len(index_entries) == 1
+    assert index_entries[0]["run_id"] == payload["run_id"]
+    assert index_entries[0]["input_type"] == "json"
+    assert index_entries[0]["record_count"] == 1
+    assert index_entries[0]["artifact_uri"] == payload["artifact_uri"]
+    assert index_entries[0]["failed_record_count"] == 0
+
 
 def test_grade_aec_upload_persists_result_artifact(
     artifact_client: tuple[TestClient, Path],
@@ -256,6 +272,52 @@ def test_grade_aec_upload_persists_result_artifact(
     artifact_file = storage_root / payload["artifact_path"]
     assert artifact_file.is_file()
     assert artifact_file.read_text(encoding="utf-8")
+
+    index_entries = _load_index_entries(storage_root)
+    assert len(index_entries) == 1
+    assert index_entries[0]["run_id"] == payload["run_id"]
+    assert index_entries[0]["input_type"] == "csv_upload"
+    assert index_entries[0]["record_count"] == 1
+    assert index_entries[0]["artifact_uri"] == payload["artifact_uri"]
+    assert index_entries[0]["failed_record_count"] == 0
+
+
+def test_run_index_appends_across_json_and_csv_requests(
+    artifact_client: tuple[TestClient, Path],
+) -> None:
+    client_with_storage, storage_root = artifact_client
+
+    json_response = client_with_storage.post(
+        "/grade/aec",
+        json={
+            "records": [
+                {
+                    "ticket_id": "",
+                    "date": "bad-date",
+                    "customer": "",
+                    "material": "Concrete",
+                    "quantity": "not-a-number",
+                    "unit": "",
+                    "job_site": "",
+                }
+            ]
+        },
+    )
+    upload_response = client_with_storage.post(
+        "/grade/aec/upload",
+        files={"file": ("dirty_aec_ticket.csv", DIRTY_SAMPLE_CSV, "text/csv")},
+    )
+
+    assert json_response.status_code == 200
+    assert upload_response.status_code == 200
+
+    index_entries = _load_index_entries(storage_root)
+    assert len(index_entries) == 2
+    assert index_entries[0]["input_type"] == "json"
+    assert index_entries[0]["failed_record_count"] == 1
+    assert index_entries[1]["input_type"] == "csv_upload"
+    assert index_entries[1]["failed_record_count"] == 1
+    assert index_entries[0]["run_id"] != index_entries[1]["run_id"]
 
 
 def test_grade_aec_upload_reuses_same_grading_engine_as_json() -> None:
