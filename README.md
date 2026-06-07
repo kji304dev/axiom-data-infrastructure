@@ -15,7 +15,7 @@ npm run typecheck
 python backend/scripts/smoke_test.py --base-url https://axiom-data-infrastructure.onrender.com
 ```
 
-Generated run artifacts under `output/` are intentionally ignored by Git (see `.gitignore`).
+Generated run artifacts under `output/` and `local_artifacts/` are intentionally ignored by Git (see `.gitignore`).
 
 ## Portfolio Summary
 

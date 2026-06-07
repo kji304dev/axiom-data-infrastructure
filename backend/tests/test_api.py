@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.app import app
+from backend.api.routes import get_storage_backend
 from backend.engine.scoring import (
     CONFIDENT_REPAIR_PENALTY,
     FAILED_RECORD_PENALTY,
@@ -11,6 +13,7 @@ from backend.engine.scoring import (
     REVIEW_REPAIR_PENALTY,
     STARTING_SCORE,
 )
+from backend.storage.local import LocalStorageBackend
 
 client = TestClient(app)
 
@@ -23,6 +26,21 @@ VALID_CSV = """ticket_id,date,customer,material,quantity,unit,job_site
 UNRECOVERABLE_CSV = """ticket_id,date,customer,material,quantity,unit,job_site
 ,bad-date,,Concrete,not-a-number,,
 """
+
+
+@pytest.fixture
+def artifact_client(tmp_path: Path) -> tuple[TestClient, Path]:
+    app.dependency_overrides[get_storage_backend] = lambda: LocalStorageBackend(
+        tmp_path
+    )
+    yield TestClient(app), tmp_path
+    app.dependency_overrides.clear()
+
+
+def _assert_artifact_metadata(payload: dict) -> None:
+    assert payload["run_id"]
+    assert payload["artifact_path"] == f"runs/{payload['run_id']}/result.json"
+    assert payload["artifact_uri"] == f"local://{payload['artifact_path']}"
 
 
 def _validator_messages(payload: dict) -> list[str]:
@@ -190,6 +208,54 @@ def test_grade_aec_upload_dirty_csv_with_failed_records() -> None:
     validator_messages = _validator_messages(payload)
     assert "Final validation passed" not in validator_messages
     assert any("dead-lettered records" in message for message in validator_messages)
+
+
+def test_grade_aec_persists_result_artifact(
+    artifact_client: tuple[TestClient, Path],
+) -> None:
+    client_with_storage, storage_root = artifact_client
+    response = client_with_storage.post(
+        "/grade/aec",
+        json={
+            "records": [
+                {
+                    "ticket_id": "1001",
+                    "date": "2026-05-01",
+                    "customer": "Acme",
+                    "material": "Concrete",
+                    "quantity": 5,
+                    "unit": "yd3",
+                    "job_site": "North Yard",
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    _assert_artifact_metadata(payload)
+
+    artifact_file = storage_root / payload["artifact_path"]
+    assert artifact_file.is_file()
+    assert artifact_file.read_text(encoding="utf-8")
+
+
+def test_grade_aec_upload_persists_result_artifact(
+    artifact_client: tuple[TestClient, Path],
+) -> None:
+    client_with_storage, storage_root = artifact_client
+    response = client_with_storage.post(
+        "/grade/aec/upload",
+        files={"file": ("dirty.csv", VALID_CSV, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    _assert_artifact_metadata(payload)
+
+    artifact_file = storage_root / payload["artifact_path"]
+    assert artifact_file.is_file()
+    assert artifact_file.read_text(encoding="utf-8")
 
 
 def test_grade_aec_upload_reuses_same_grading_engine_as_json() -> None:

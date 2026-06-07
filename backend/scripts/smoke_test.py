@@ -70,6 +70,9 @@ def validate_grade_payload(payload: dict[str, Any], *, expect_success: bool) -> 
         "health_score",
         "health_score_explanation",
         "validation_passed",
+        "run_id",
+        "artifact_path",
+        "artifact_uri",
     }
     missing = required_keys - set(payload.keys())
     if missing:
@@ -104,6 +107,9 @@ def validate_upload_payload(payload: dict[str, Any]) -> SmokeCheckResult:
         "validation_passed",
         "health_score",
         "processing_history",
+        "run_id",
+        "artifact_path",
+        "artifact_uri",
     }
     missing = required_keys - set(payload.keys())
     if missing:

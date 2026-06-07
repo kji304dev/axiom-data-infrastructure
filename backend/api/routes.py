@@ -1,4 +1,8 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend.core.config import ADI_ENGINE_VERSION
 from backend.core.schemas import (
@@ -9,8 +13,19 @@ from backend.core.schemas import (
 )
 from backend.engine.graph import run_aec_grading
 from backend.io.csv_parser import CsvParseError, parse_csv_records
+from backend.storage.artifacts import persist_grade_result
+from backend.storage.base import StorageBackend
+from backend.storage.deps import get_storage_backend
 
 router = APIRouter()
+
+
+def _grade_and_persist(
+    records: list[dict[str, Any]],
+    storage: StorageBackend,
+) -> GradeAECResponse:
+    result = run_aec_grading(records)
+    return persist_grade_result(storage, result)
 
 
 @router.get("/", response_model=RootResponse)
@@ -35,13 +50,17 @@ def health_check() -> HealthResponse:
 
 
 @router.post("/grade/aec", response_model=GradeAECResponse)
-def grade_aec(payload: GradeAECRequest) -> GradeAECResponse:
-    return run_aec_grading(payload.records)
+def grade_aec(
+    payload: GradeAECRequest,
+    storage: StorageBackend = Depends(get_storage_backend),
+) -> GradeAECResponse:
+    return _grade_and_persist(payload.records, storage)
 
 
 @router.post("/grade/aec/upload", response_model=GradeAECResponse)
 async def grade_aec_upload(
     file: UploadFile | None = File(default=None),
+    storage: StorageBackend = Depends(get_storage_backend),
 ) -> GradeAECResponse:
     if file is None:
         raise HTTPException(status_code=400, detail="File must be present")
@@ -63,4 +82,4 @@ async def grade_aec_upload(
             status_code=400, detail="File must be valid UTF-8 CSV"
         ) from error
 
-    return run_aec_grading(records)
+    return _grade_and_persist(records, storage)

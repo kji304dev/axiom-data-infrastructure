@@ -67,6 +67,9 @@ def test_validate_upload_payload_expects_mixed_dirty_batch_shape() -> None:
         "processing_history": [],
         "repairs": [],
         "anomalies": [],
+        "run_id": "abc123",
+        "artifact_path": "runs/abc123/result.json",
+        "artifact_uri": "local://runs/abc123/result.json",
     }
     result = validate_upload_payload(payload)
     assert result.passed is True

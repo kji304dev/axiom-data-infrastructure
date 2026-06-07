@@ -120,3 +120,6 @@ class GradeAECResponse(BaseModel):
     health_score: float
     health_score_explanation: HealthScoreExplanation
     validation_passed: bool
+    run_id: str | None = None
+    artifact_path: str | None = None
+    artifact_uri: str | None = None
