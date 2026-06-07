@@ -11,6 +11,7 @@ from backend.core.schemas import FailedRecord, GradeAECResponse, ProcessingEvent
 from backend.engine.scoring import calculate_health_score
 from backend.engine.state import EngineState
 from backend.engine.validation import deterministic_final_validation
+from backend.reports.clean_vs_dirty import build_clean_vs_dirty_summary
 
 configure_logging()
 
@@ -277,6 +278,14 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
             validation_passed=state.validation_passed,
         )
     )
+    summary = build_clean_vs_dirty_summary(
+        health_score=state.health_score,
+        records_received=len(state.raw_records),
+        failed_record_count=len(state.failed_records),
+        anomalies=state.anomalies,
+        failed_records=state.failed_records,
+        repairs=state.repairs,
+    )
     return GradeAECResponse(
         raw_records=state.raw_records,
         cleaned_records=state.cleaned_records,
@@ -289,4 +298,5 @@ def run_aec_grading(records: list[dict[str, Any]]) -> GradeAECResponse:
         health_score=state.health_score,
         health_score_explanation=state.health_score_explanation,
         validation_passed=state.validation_passed,
+        summary=summary,
     )

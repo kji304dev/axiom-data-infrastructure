@@ -1,7 +1,10 @@
 import { useState } from "react";
 
 import { getApiBaseUrl } from "./api/config.js";
+import { SummaryReport } from "./components/SummaryReport.js";
 import { RunHistory } from "./components/RunHistory.js";
+import type { GradeArtifact } from "./types/runs.js";
+import { isCleanVsDirtySummary } from "./types/summary.js";
 
 const SAMPLE_RECORD = {
   ticket_id: "1002",
@@ -18,6 +21,7 @@ export function App() {
   const [gradeMessage, setGradeMessage] = useState<string | null>(null);
   const [gradeError, setGradeError] = useState<string | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [latestResult, setLatestResult] = useState<GradeArtifact | null>(null);
 
   async function handleGradeJson() {
     setGradeMessage(null);
@@ -34,7 +38,8 @@ export function App() {
         throw new Error(`Grade request failed with status ${response.status}`);
       }
 
-      const payload = (await response.json()) as { run_id?: string };
+      const payload = (await response.json()) as GradeArtifact;
+      setLatestResult(payload);
       setGradeMessage(`Graded sample JSON run ${payload.run_id ?? ""}`.trim());
       setHistoryRefreshKey((value) => value + 1);
     } catch {
@@ -64,7 +69,8 @@ export function App() {
         throw new Error(`Upload failed with status ${response.status}`);
       }
 
-      const payload = (await response.json()) as { run_id?: string };
+      const payload = (await response.json()) as GradeArtifact;
+      setLatestResult(payload);
       setGradeMessage(`Uploaded CSV run ${payload.run_id ?? ""}`.trim());
       setHistoryRefreshKey((value) => value + 1);
     } catch {
@@ -94,6 +100,13 @@ export function App() {
         </div>
         {gradeMessage ? <p>{gradeMessage}</p> : null}
         {gradeError ? <p role="alert">{gradeError}</p> : null}
+        <SummaryReport
+          summary={
+            latestResult && isCleanVsDirtySummary(latestResult.summary)
+              ? latestResult.summary
+              : null
+          }
+        />
       </section>
 
       <RunHistory refreshKey={historyRefreshKey} />

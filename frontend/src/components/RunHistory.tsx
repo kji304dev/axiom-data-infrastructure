@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchRunArtifact, fetchRuns } from "../api/runs.js";
 import type { GradeArtifact, RunIndexEntry } from "../types/runs.js";
+import { isCleanVsDirtySummary } from "../types/summary.js";
+import { SummaryReport } from "./SummaryReport.js";
 
 interface RunHistoryProps {
   refreshKey?: number;
@@ -93,9 +95,16 @@ export function RunHistory({ refreshKey = 0 }: RunHistoryProps) {
       {artifactError ? <p role="alert">{artifactError}</p> : null}
 
       {artifact ? (
-        <pre data-testid="artifact-preview">
-          {JSON.stringify(artifact, null, 2)}
-        </pre>
+        <>
+          <SummaryReport
+            summary={
+              isCleanVsDirtySummary(artifact.summary) ? artifact.summary : null
+            }
+          />
+          <pre data-testid="artifact-preview">
+            {JSON.stringify(artifact, null, 2)}
+          </pre>
+        </>
       ) : null}
     </section>
   );

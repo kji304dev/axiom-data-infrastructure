@@ -66,6 +66,18 @@ describe("RunHistory", () => {
       run_id: "abc123",
       validation_passed: false,
       health_score: 82,
+      summary: {
+        headline: "This file is mostly clean with minor issues.",
+        data_grade: "B",
+        health_score: 82,
+        records_received: 100,
+        records_clean: 82,
+        records_flagged: 18,
+        top_issues: [],
+        recommended_next_steps: [
+          "Review flagged records before importing into downstream systems.",
+        ],
+      },
     });
 
     render(<RunHistory />);
@@ -81,6 +93,10 @@ describe("RunHistory", () => {
     expect(await screen.findByTestId("artifact-preview")).toHaveTextContent(
       '"run_id": "abc123"',
     );
+    expect(screen.getByTestId("summary-report")).toBeInTheDocument();
+    expect(
+      screen.getByText("This file is mostly clean with minor issues."),
+    ).toBeInTheDocument();
   });
 
   it("shows an error when runs cannot be loaded", async () => {

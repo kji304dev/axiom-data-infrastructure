@@ -69,6 +69,27 @@ class FailedRecord(BaseModel):
     record: dict[str, Any]
 
 
+class SummaryTopIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    field: str
+    issue: str
+    count: int
+
+
+class CleanVsDirtySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    headline: str
+    data_grade: Literal["A", "B", "C", "D", "F"]
+    health_score: float
+    records_received: int
+    records_clean: int
+    records_flagged: int
+    top_issues: list[SummaryTopIssue]
+    recommended_next_steps: list[str]
+
+
 class AECRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -123,3 +144,4 @@ class GradeAECResponse(BaseModel):
     run_id: str | None = None
     artifact_path: str | None = None
     artifact_uri: str | None = None
+    summary: CleanVsDirtySummary | None = None

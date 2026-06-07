@@ -31,6 +31,7 @@ ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering syst
 - `failed_records` dead-letter handling
 - Deterministic final validation
 - Health scoring
+- Clean-vs-Dirty Summary Report (deterministic data grade, top issues, next steps)
 - Structured logging
 - TypeScript operator CLI
 - Render deployment
@@ -379,6 +380,8 @@ npm run dev
 ```
 
 In another terminal, start the FastAPI backend on port 8000. The frontend defaults to `http://127.0.0.1:8000` (override with `VITE_API_BASE_URL`).
+
+Grading responses and saved artifacts now include a deterministic **Clean-vs-Dirty Summary Report** with data grade, health score, clean vs flagged record counts, top issues, and recommended next steps. This is generated locally from validation results during MVP development (no LLM calls).
 
 ### Smoke test
 
