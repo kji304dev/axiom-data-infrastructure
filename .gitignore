@@ -229,3 +229,4 @@ output/
 output/report.json
 output/*.json
 output/*.md
+local_artifacts/

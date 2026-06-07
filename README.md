@@ -307,6 +307,7 @@ A production-oriented Python backend lives under `backend/` and runs alongside t
 | API | `backend/api/` | FastAPI app and routes (`GET /`, `GET /health`, `POST /grade/aec`, `POST /grade/aec/upload`) |
 | Core | `backend/core/` | Pydantic schemas, config, structured logging |
 | Engine | `backend/engine/` | State-machine orchestration, validation, scoring |
+| Storage | `backend/storage/` | Pluggable artifact storage (`LocalStorageBackend` today; S3-ready interface) |
 | Agents | `backend/agents/` | Analyzer, Transformer, Auditor (isolated modules) |
 
 The backend demonstrates:
@@ -570,6 +571,8 @@ This TypeScript engine is currently on the **`langgraph-typescript-engine`** bra
 
 ADI is deployed on Render today. This section outlines a practical AWS-native evolution path aligned with Data Engineer Associate patterns. **Nothing below is implemented yet**—it is a roadmap for how the current design could map to AWS services without changing the core grading logic.
 
+Run artifacts are already abstracted behind `backend/storage/` (`StorageBackend` with `LocalStorageBackend` writing to `local_artifacts/`). A future `S3StorageBackend` can implement the same interface without changing grading logic.
+
 ### Current deployment
 
 - Render-hosted FastAPI backend ([Live API](https://axiom-data-infrastructure.onrender.com))
@@ -580,7 +583,7 @@ ADI is deployed on Render today. This section outlines a practical AWS-native ev
 
 | ADI concept today | Planned AWS service | Role |
 |-------------------|---------------------|------|
-| CSV upload payloads | **S3** | Store raw uploads and cleaned output artifacts |
+| CSV upload payloads | **S3** | Store raw uploads and cleaned output artifacts (via future `S3StorageBackend`) |
 | Public HTTP API | **API Gateway** or **Application Load Balancer** | Route client requests to compute |
 | Grading engine execution | **Lambda** or **ECS/Fargate** | Run validation, cleaning, and scoring workloads |
 | `failed_records` dead letters | **SQS** dead-letter queue | Capture unrecoverable rows for replay or operator review |
