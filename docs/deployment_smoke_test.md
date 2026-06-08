@@ -2,6 +2,32 @@
 
 Phase 7 readiness guide for verifying the deployed MVP before external demos.
 
+## Latest deployed smoke test result
+
+**Status:** Passed — manual end-to-end verification (Phase 7)
+
+| Target | URL |
+|--------|-----|
+| Deployed frontend | Configured Render frontend URL |
+| Deployed backend | [Live API](https://axiom-data-infrastructure.onrender.com) (see README) |
+
+Verified:
+
+- GitHub Actions CI passing on `main`
+- Deployed frontend loads
+- Deployed backend health/status is reachable
+- Frontend **Backend Status** shows **Backend connected**
+- Frontend uses the deployed backend API base URL (not localhost)
+- `samples/aec_messy_sample.csv` uploads successfully
+- **Clean-vs-Dirty Summary Report** appears (`records_flagged` > 0, top issues, recommended next steps)
+- Run appears in **Run History**
+- Saved artifact opens from **View Result**
+- Raw JSON preview remains available
+
+**Storage caveat still applies:** MVP persistence is local filesystem based (`local_artifacts/`). On Render or other ephemeral hosts, run history and artifacts may reset after redeploy or restart. This is acceptable for the current MVP demo. Future production mapping: **S3** for artifacts, **DynamoDB** for run metadata (not implemented).
+
+Re-run the [checklist below](#deployed-end-to-end-smoke-verification-checklist) before future external demos.
+
 ## Deployed end-to-end smoke verification checklist
 
 Use this checklist before an external demo. Check items in order.

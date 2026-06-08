@@ -136,6 +136,8 @@ Before an external demo, use the **[deployed end-to-end smoke verification check
 - [ ] Run appears in **Run History** with saved artifact preview
 - [ ] Ephemeral storage limits on Render are understood
 
+Latest manual result: **passed** — see [Latest deployed smoke test result](docs/deployment_smoke_test.md#latest-deployed-smoke-test-result).
+
 Full steps, curl checks, failure testing, and MVP caveats: **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)**.
 
 ## Architecture Overview
