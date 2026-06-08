@@ -48,18 +48,30 @@ Repeatable Phase 6 demo files live in `samples/`:
 
 CSV headers match the backend AEC schema: `ticket_id`, `date`, `customer`, `material`, `quantity`, `unit`, `job_site`.
 
-### Start the demo
+### One-time setup
 
-Terminal 1 — backend:
+From the repo root:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+cd frontend && npm install && cp .env.example .env && cd ..
+```
+
+### Start the demo
+
+Terminal 1 — backend (with venv activated):
+
+```bash
+source .venv/bin/activate
 uvicorn backend.api.app:app --reload --port 8000
 ```
 
 Terminal 2 — frontend:
 
 ```bash
-cd frontend && npm install && cp .env.example .env && npm run dev
+cd frontend && npm run dev
 ```
 
 Open `http://127.0.0.1:5173`.
@@ -94,6 +106,20 @@ After uploading `aec_messy_sample.csv`, you should see:
 - A saved artifact retrievable via **View Result** or `GET /runs/{run_id}/artifact`
 
 Demo persistence is local-first: artifacts under `local_artifacts/` via `StorageBackend`, metadata in `local_artifacts/run_index.json`. Later this maps to **S3** for artifacts and **DynamoDB** for run metadata without changing the workflow.
+
+### Phase 6 MVP Demo Checklist
+
+- [ ] Backend starts successfully (`uvicorn backend.api.app:app --reload --port 8000`)
+- [ ] Frontend starts successfully (`cd frontend && npm run dev`)
+- [ ] Messy AEC sample uploads successfully (`samples/aec_messy_sample.csv`)
+- [ ] Clean-vs-Dirty Summary appears after upload
+- [ ] Run appears in Run History
+- [ ] Saved artifact opens from **View Result**
+- [ ] Clean sample comparison works (`samples/aec_clean_sample.csv`)
+- [ ] `local_artifacts/` remains untracked
+- [ ] `pytest backend/tests` passes
+- [ ] `npm test` passes
+- [ ] `npm run typecheck` passes
 
 ## Architecture Overview
 
@@ -425,22 +451,9 @@ uvicorn backend.api.app:app --reload --port 8000
 
 ### Frontend demo (Run History)
 
-The `frontend/` app provides a lightweight grading demo with a **Run History** section that reads saved backend runs via:
+See **[Demo: Clean vs Dirty AEC data](#demo-clean-vs-dirty-aec-data)** above for the full Phase 6 walkthrough.
 
-- `GET /runs`
-- `GET /runs/{run_id}/artifact`
-
-Run metadata is stored locally in `local_artifacts/run_index.json` during MVP development. Result artifacts use the `StorageBackend` abstraction. Later, metadata can map to **DynamoDB** and artifacts to **S3** without changing the demo workflow.
-
-```bash
-cd frontend && npm install
-cp .env.example .env
-npm run dev
-```
-
-In another terminal, start the FastAPI backend on port 8000. The frontend defaults to `http://127.0.0.1:8000` (override with `VITE_API_BASE_URL`).
-
-Grading responses and saved artifacts now include a deterministic **Clean-vs-Dirty Summary Report** with data grade, health score, clean vs flagged record counts, top issues, and recommended next steps. This is generated locally from validation results during MVP development (no LLM calls).
+The `frontend/` app provides grading, Clean-vs-Dirty Summary display, Run History, and saved artifact preview over `GET /runs` and `GET /runs/{run_id}/artifact`.
 
 ### Smoke test
 

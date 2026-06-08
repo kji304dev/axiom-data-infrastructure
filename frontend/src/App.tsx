@@ -89,7 +89,11 @@ export function App() {
           Grade Sample JSON
         </button>
         <div>
+          <label htmlFor="csv-upload">
+            Upload CSV (try <code>samples/aec_messy_sample.csv</code>)
+          </label>
           <input
+            id="csv-upload"
             type="file"
             accept=".csv"
             onChange={(event) => setCsvFile(event.target.files?.[0] ?? null)}

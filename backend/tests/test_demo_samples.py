@@ -24,6 +24,12 @@ def isolated_client(tmp_path: Path) -> TestClient:
     app.dependency_overrides.clear()
 
 
+def test_demo_sample_files_exist() -> None:
+    assert CLEAN_SAMPLE.is_file()
+    assert MESSY_SAMPLE.is_file()
+    assert MESSY_JSON.is_file()
+
+
 def test_demo_sample_csv_headers_match_backend_schema() -> None:
     clean_headers = set(parse_csv_records(CLEAN_SAMPLE.read_text(encoding="utf-8"))[0])
     messy_headers = set(parse_csv_records(MESSY_SAMPLE.read_text(encoding="utf-8"))[0])
@@ -69,6 +75,30 @@ def test_messy_demo_sample_flags_records_and_summary(isolated_client: TestClient
     assert payload["summary"]["data_grade"] != "A"
     assert len(payload["failed_records"]) > 0
     assert payload["summary"]["top_issues"] or payload["summary"]["recommended_next_steps"]
+
+
+def test_messy_demo_sample_persists_summary_in_artifact(
+    isolated_client: TestClient,
+) -> None:
+    upload_response = isolated_client.post(
+        "/grade/aec/upload",
+        files={
+            "file": (
+                "aec_messy_sample.csv",
+                MESSY_SAMPLE.read_text(encoding="utf-8"),
+                "text/csv",
+            )
+        },
+    )
+
+    assert upload_response.status_code == 200
+    run_id = upload_response.json()["run_id"]
+    artifact_response = isolated_client.get(f"/runs/{run_id}/artifact")
+
+    assert artifact_response.status_code == 200
+    artifact = artifact_response.json()
+    assert artifact["summary"]["records_flagged"] > 0
+    assert artifact["summary"]["data_grade"] != "A"
 
 
 def test_demo_samples_are_not_written_to_repo_local_artifacts(

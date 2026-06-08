@@ -93,6 +93,7 @@ describe("RunHistory", () => {
     expect(await screen.findByTestId("artifact-preview")).toHaveTextContent(
       '"run_id": "abc123"',
     );
+    expect(screen.getByText("Saved artifact (raw JSON)")).toBeInTheDocument();
     expect(screen.getByTestId("summary-report")).toBeInTheDocument();
     expect(
       screen.getByText("This file is mostly clean with minor issues."),

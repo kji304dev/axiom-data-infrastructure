@@ -101,6 +101,7 @@ export function RunHistory({ refreshKey = 0 }: RunHistoryProps) {
               isCleanVsDirtySummary(artifact.summary) ? artifact.summary : null
             }
           />
+          <h4>Saved artifact (raw JSON)</h4>
           <pre data-testid="artifact-preview">
             {JSON.stringify(artifact, null, 2)}
           </pre>
