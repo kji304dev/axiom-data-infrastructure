@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchRunArtifact, fetchRuns } from "../api/runs.js";
+import { getBackendErrorMessage } from "../api/errors.js";
 import type { GradeArtifact, RunIndexEntry } from "../types/runs.js";
 import { isCleanVsDirtySummary } from "../types/summary.js";
 import { SummaryReport } from "./SummaryReport.js";
@@ -24,8 +25,13 @@ export function RunHistory({ refreshKey = 0 }: RunHistoryProps) {
     try {
       const response = await fetchRuns();
       setRuns(response.runs);
-    } catch {
-      setError("Unable to load run history.");
+    } catch (error) {
+      setError(
+        getBackendErrorMessage(
+          error,
+          "Could not load run history. Check the API base URL and backend deployment.",
+        ),
+      );
       setRuns([]);
     } finally {
       setLoading(false);
@@ -45,8 +51,13 @@ export function RunHistory({ refreshKey = 0 }: RunHistoryProps) {
     try {
       const result = await fetchRunArtifact(runId);
       setArtifact(result);
-    } catch {
-      setArtifactError("Unable to load run artifact.");
+    } catch (error) {
+      setArtifactError(
+        getBackendErrorMessage(
+          error,
+          "Could not load run artifact. Check the API base URL and backend deployment.",
+        ),
+      );
     } finally {
       setArtifactLoading(false);
     }

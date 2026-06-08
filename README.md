@@ -128,7 +128,7 @@ Demo persistence is local-first: artifacts under `local_artifacts/` via `Storage
 Before an external demo against the deployed API:
 
 - [ ] `python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com` passes
-- [ ] Frontend loads with correct `VITE_API_BASE_URL` (see [docs/deployment_smoke_test.md](docs/deployment_smoke_test.md))
+- [ ] Frontend **Backend Status** shows **Backend connected** (see [docs/deployment_smoke_test.md](docs/deployment_smoke_test.md))
 - [ ] Misconfigured API URL shows visible errors in the UI
 - [ ] Ephemeral storage limits on Render are understood (run history may reset after redeploy)
 
@@ -467,14 +467,14 @@ See **[Demo: Clean vs Dirty AEC data](#demo-clean-vs-dirty-aec-data)** above for
 
 The `frontend/` app provides grading, Clean-vs-Dirty Summary display, Run History, and saved artifact preview over `GET /runs` and `GET /runs/{run_id}/artifact`.
 
-**Frontend API base URL:** set `VITE_API_BASE_URL` in `frontend/.env` (see `frontend/.env.example`).
+**Frontend API base URL:** set `VITE_API_BASE_URL` in `frontend/.env` (see `frontend/.env.example`). All requests use `buildApiUrl()` from `frontend/src/api/config.ts` so trailing slashes are normalized.
 
 | Target | `VITE_API_BASE_URL` |
 |--------|---------------------|
 | Local backend (default) | `http://127.0.0.1:8000` |
 | Deployed Render backend | `https://axiom-data-infrastructure.onrender.com` |
 
-Restart the Vite dev server after changing `.env`. If the frontend origin is not localhost, set `ADI_CORS_ORIGINS` on the backend (comma-separated).
+On load, the UI checks `GET /health` and shows **Backend Status** (connected vs unreachable). Restart the Vite dev server after changing `.env`. If the frontend origin is not localhost, set `ADI_CORS_ORIGINS` on the backend (comma-separated).
 
 ### Smoke test
 

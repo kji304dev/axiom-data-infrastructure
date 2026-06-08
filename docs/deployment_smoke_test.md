@@ -29,15 +29,45 @@ Optional environment variables (Render dashboard):
 
 ### Frontend API base URL
 
-The frontend reads **`VITE_API_BASE_URL`** at build/dev time (`frontend/src/api/config.ts`).
+The frontend reads **`VITE_API_BASE_URL`** at build/dev time (`frontend/src/api/config.ts`). All API calls go through `buildApiUrl()` so trailing slashes on the base URL do not break endpoint paths.
 
 | Environment | Setting |
 |-------------|---------|
 | **Local dev (default)** | `VITE_API_BASE_URL=http://127.0.0.1:8000` in `frontend/.env` |
-| **Local frontend → deployed backend** | `VITE_API_BASE_URL=https://axiom-data-infrastructure.onrender.com` |
+| **Local frontend → deployed backend** | `VITE_API_BASE_URL=https://your-backend.onrender.com` |
 | **Deployed frontend (future)** | Set `VITE_API_BASE_URL` to the Render backend URL at build time |
 
+Example local value:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+Example deployed value placeholder:
+
+```bash
+VITE_API_BASE_URL=https://your-adi-backend.onrender.com
+```
+
 Restart the Vite dev server after changing `.env`.
+
+### Frontend backend health indicator
+
+On load, the demo UI calls `GET /health` and shows **Backend Status** at the top of the page:
+
+- **Checking backend connection...** — health request in progress
+- **Backend connected (adi-backend v0.1.0).** — API base URL and `/health` are reachable
+- **Backend unreachable. Check API base URL configuration.** — wrong URL, backend down, or CORS blocking the browser
+
+Verify backend health manually:
+
+```bash
+curl "$VITE_API_BASE_URL/health"
+# or
+curl https://your-adi-backend.onrender.com/health
+```
+
+Expected: `{"status":"ok","service":"adi-backend","version":"0.1.0"}` (version may vary).
 
 ### CORS
 
@@ -118,11 +148,17 @@ Confirm the JSON grading response includes a `summary` object with `data_grade`,
 
 If `VITE_API_BASE_URL` is wrong:
 
-- Upload/grade buttons show an error alert
-- Run History shows **Unable to load run history**
-- Browser devtools network tab shows failed requests (CORS or connection errors)
+- **Backend Status** shows **Backend unreachable. Check API base URL configuration.**
+- Upload/grade actions show **Could not reach the ADI backend. Check the API base URL and backend deployment.**
+- Run History shows the same reachability message (or an HTTP/CORS message if the server responds with an error status)
+- Browser devtools network tab shows failed requests (connection refused, CORS, or 404)
 
-Fix `frontend/.env` and restart Vite.
+What to check:
+
+1. `frontend/.env` has the correct `VITE_API_BASE_URL` (no trailing slash required)
+2. Vite dev server was restarted after editing `.env`
+3. Backend is running (`curl <base-url>/health`)
+4. `ADI_CORS_ORIGINS` on the backend includes your frontend origin if not localhost
 
 ## Local-first storage caveat (MVP)
 
@@ -154,7 +190,7 @@ No AWS dependencies are required for this smoke-test step.
 - [ ] `GET /health` returns `status: ok`
 - [ ] JSON grading returns `summary`
 - [ ] CSV upload with `aec_messy_sample.csv` returns flagged records
-- [ ] Frontend loads with correct `VITE_API_BASE_URL`
+- [ ] Frontend **Backend Status** shows **Backend connected**
 - [ ] CORS allows your frontend origin (if not localhost)
 - [ ] Clean-vs-Dirty Summary visible after upload
 - [ ] Run History loads (may be empty after redeploy on ephemeral storage)

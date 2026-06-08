@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchRunArtifact, fetchRuns } from "../src/api/runs.js";
+import { BackendRequestError } from "../src/api/errors.js";
 import { RunHistory } from "../src/components/RunHistory.js";
 
 vi.mock("../src/api/runs.js", () => ({
@@ -101,18 +102,29 @@ describe("RunHistory", () => {
   });
 
   it("shows an error when runs cannot be loaded", async () => {
-    mockedFetchRuns.mockRejectedValue(new Error("network error"));
+    mockedFetchRuns.mockRejectedValue(
+      new BackendRequestError(
+        "Could not reach the ADI backend. Check the API base URL and backend deployment.",
+        "network",
+      ),
+    );
 
     render(<RunHistory />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Unable to load run history.",
+      "Could not reach the ADI backend. Check the API base URL and backend deployment.",
     );
   });
 
   it("shows an error when artifact cannot be loaded", async () => {
     mockedFetchRuns.mockResolvedValue(sampleRuns);
-    mockedFetchRunArtifact.mockRejectedValue(new Error("missing artifact"));
+    mockedFetchRunArtifact.mockRejectedValue(
+      new BackendRequestError(
+        "Backend request failed (HTTP 410). Confirm the deployed API is running and CORS is configured.",
+        "http",
+        410,
+      ),
+    );
 
     render(<RunHistory />);
     const user = userEvent.setup();
@@ -121,7 +133,7 @@ describe("RunHistory", () => {
     await user.click(screen.getByRole("button", { name: "View Result" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Unable to load run artifact.",
+      "Backend request failed (HTTP 410). Confirm the deployed API is running and CORS is configured.",
     );
   });
 });

@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-import { getApiBaseUrl } from "./api/config.js";
+import { gradeAecCsvUpload, gradeAecRecords } from "./api/grade.js";
+import { getBackendErrorMessage } from "./api/errors.js";
+import { BackendStatus } from "./components/BackendStatus.js";
 import { SummaryReport } from "./components/SummaryReport.js";
 import { RunHistory } from "./components/RunHistory.js";
 import type { GradeArtifact } from "./types/runs.js";
@@ -28,22 +30,17 @@ export function App() {
     setGradeError(null);
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/grade/aec`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ records: [SAMPLE_RECORD] }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Grade request failed with status ${response.status}`);
-      }
-
-      const payload = (await response.json()) as GradeArtifact;
+      const payload = await gradeAecRecords([SAMPLE_RECORD]);
       setLatestResult(payload);
       setGradeMessage(`Graded sample JSON run ${payload.run_id ?? ""}`.trim());
       setHistoryRefreshKey((value) => value + 1);
-    } catch {
-      setGradeError("Unable to grade sample JSON record.");
+    } catch (error) {
+      setGradeError(
+        getBackendErrorMessage(
+          error,
+          "Could not grade sample JSON record. Check the API base URL and backend deployment.",
+        ),
+      );
     }
   }
 
@@ -56,32 +53,26 @@ export function App() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", csvFile);
-
     try {
-      const response = await fetch(`${getApiBaseUrl()}/grade/aec/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Upload failed with status ${response.status}`);
-      }
-
-      const payload = (await response.json()) as GradeArtifact;
+      const payload = await gradeAecCsvUpload(csvFile);
       setLatestResult(payload);
       setGradeMessage(`Uploaded CSV run ${payload.run_id ?? ""}`.trim());
       setHistoryRefreshKey((value) => value + 1);
-    } catch {
-      setGradeError("Unable to upload CSV for grading.");
+    } catch (error) {
+      setGradeError(
+        getBackendErrorMessage(
+          error,
+          "Could not upload CSV for grading. Check the API base URL and backend deployment.",
+        ),
+      );
     }
   }
 
   return (
     <main>
       <h1>ADI Grading Demo</h1>
-      <p>API base URL: {getApiBaseUrl()}</p>
+
+      <BackendStatus />
 
       <section aria-labelledby="grading-heading">
         <h2 id="grading-heading">Grade Data</h2>
