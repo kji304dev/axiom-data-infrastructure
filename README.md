@@ -15,6 +15,8 @@ npm run typecheck
 python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com
 ```
 
+GitHub Actions CI runs on push and pull requests to `main`, validating backend tests (`pytest backend/tests`), frontend tests, and frontend typecheck.
+
 See **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)** for the full Phase 7 deployment smoke checklist (frontend, CORS, ephemeral storage caveats).
 
 Generated run artifacts under `output/` and `local_artifacts/` are intentionally ignored by Git (see `.gitignore`).
