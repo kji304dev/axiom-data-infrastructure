@@ -1,0 +1,11 @@
+ticket_id,date,customer,material,quantity,unit,job_site
+TCK-2001,2026-05-01,Harborview Constructors,Concrete,12,yd3,Phase 1 Pad
+TCK-2002,2026-05-02,Ridgefield Electric,Gravel,18,tons,Substation Yard
+TCK-2003,2026-05-03,Blue Mesa Builders,Asphalt,8,tons,Lot 7
+TCK-2004,2026-05-04,Mill Creek Development,Sand,15,tons,South Staging
+TCK-2005,2026-05-05,Oakwood Partners,Rebar,250,ea,Warehouse Bay
+TCK-2006,2026-05-06,Summit Bridge Co,Steel Beams,6,ea,Bridge Pier A
+TCK-2007,2026-05-07,Pine Valley GC,Topsoil,25,yd3,Green Belt
+TCK-2008,2026-05-08,Harborview Constructors,Concrete,9,yd3,Phase 2 Pad
+TCK-2009,2026-05-09,Ridgefield Electric,Cable Tray,40,ea,Electrical Room
+TCK-2010,2026-05-10,Fictional Fabricators,Structural Steel,14,tons,Frame Section C

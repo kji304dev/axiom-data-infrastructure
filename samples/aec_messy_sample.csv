@@ -1,0 +1,13 @@
+ticket_id,date,customer,material,quantity,unit,job_site
+TCK-3001,2026-05-01,Harborview Constructors,Concrete,12,yd3,Phase 1 Pad
+TCK-3002,05/02/26,,gravel,-4,tons,
+TCK-3003,bad-date,Blue Mesa Builders,Asphalt,8,tons,Lot 7
+TCK-3004,2026-05-04,Mill Creek Development,Sand,15,tons,South Staging
+TCK-3005,2026-05-05,Oakwood Partners,CONCRETE,20,yd3,North Pad
+TCK-3005,2026-05-05,Oakwood Partners,concrete mix,20,yd3,North Pad
+TCK-3006,2026-05-06,Summit Bridge Co,Steel Beams,not-a-number,ea,Bridge Pier A
+TCK-3007,2026-05-07,Pine Valley GC,Topsoil,25,,Green Belt
+,bad-date,Fictional Vendor LLC,Gravel,10,tons,Temp Road
+TCK-3009,2026-05-09,Ridgefield Electric,Cable Tray,12.5.5,ea,Electrical Room
+TCK-3010,2026-05-10,Harborview Constructors,Concrete,100,$1000,Phase 1 Pad
+TCK-3011,2026-05-11,Summit Bridge Co,Rebar,6,ea,

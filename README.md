@@ -36,6 +36,65 @@ ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering syst
 - TypeScript operator CLI
 - Render deployment
 
+## Demo: Clean vs Dirty AEC data
+
+Repeatable Phase 6 demo files live in `samples/`:
+
+| File | Purpose |
+|------|---------|
+| `samples/aec_clean_sample.csv` | 10 fictional tickets with valid AEC fields |
+| `samples/aec_messy_sample.csv` | 12 fictional tickets with mixed data-quality issues |
+| `samples/aec_messy_sample.json` | Optional JSON batch for `POST /grade/aec` |
+
+CSV headers match the backend AEC schema: `ticket_id`, `date`, `customer`, `material`, `quantity`, `unit`, `job_site`.
+
+### Start the demo
+
+Terminal 1 — backend:
+
+```bash
+uvicorn backend.api.app:app --reload --port 8000
+```
+
+Terminal 2 — frontend:
+
+```bash
+cd frontend && npm install && cp .env.example .env && npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
+### Upload the messy sample
+
+1. In the frontend, choose `samples/aec_messy_sample.csv` and click **Upload CSV**.
+2. Review the **Clean-vs-Dirty Summary Report** (headline, data grade, health score, record counts, top issues, recommended next steps).
+3. Scroll to **Run History** and confirm a new run appears.
+4. Click **View Result** to load the saved artifact summary and raw JSON.
+
+Or via curl:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/grade/aec/upload" \
+  -F "file=@samples/aec_messy_sample.csv"
+```
+
+### Compare with the clean sample
+
+Upload `samples/aec_clean_sample.csv` the same way. Expect a higher data grade, zero flagged records, and `validation_passed: true`.
+
+### Expected messy-sample outcome
+
+After uploading `aec_messy_sample.csv`, you should see:
+
+- A data grade below **A** (health score reflects repairs, anomalies, and dead-lettered rows)
+- `records_flagged` greater than zero
+- Top issues listed (for example missing fields, invalid dates, or non-numeric quantities)
+- Recommended next steps based on the highest-frequency issues
+- A new entry in **Run History**
+- A saved artifact retrievable via **View Result** or `GET /runs/{run_id}/artifact`
+
+Demo persistence is local-first: artifacts under `local_artifacts/` via `StorageBackend`, metadata in `local_artifacts/run_index.json`. Later this maps to **S3** for artifacts and **DynamoDB** for run metadata without changing the workflow.
+
 ## Architecture Overview
 
 ADI (Axiom Data Infrastructure) is an operator-assisted AI/Data Engineering system for grading and cleaning messy AEC operational data. It combines a TypeScript operator CLI with a Python FastAPI backend so data can be ingested, repaired, validated, scored, and reviewed through both batch workflows and API calls.
@@ -624,6 +683,8 @@ Run artifacts are already abstracted behind `backend/storage/` (`StorageBackend`
 
 - Render-hosted FastAPI backend ([Live API](https://axiom-data-infrastructure.onrender.com))
 - JSON grading via `POST /grade/aec` and CSV upload via `POST /grade/aec/upload`
+- Repeatable demo inputs in `samples/aec_clean_sample.csv` and `samples/aec_messy_sample.csv`
+- Local artifact persistence via `StorageBackend` and local run metadata in `run_index.json`
 - Local and deployed verification via `pytest backend/tests`, `npm test`, and `backend/scripts/smoke_test.py`
 
 ### Future AWS architecture mapping

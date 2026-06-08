@@ -1,0 +1,31 @@
+{
+  "records": [
+    {
+      "ticket_id": "TCK-3002",
+      "date": "05/02/26",
+      "customer": "",
+      "material": "Gravel",
+      "quantity": -4,
+      "unit": "tons",
+      "job_site": "Substation Yard"
+    },
+    {
+      "ticket_id": "TCK-3003",
+      "date": "bad-date",
+      "customer": "Blue Mesa Builders",
+      "material": "Asphalt",
+      "quantity": 8,
+      "unit": "tons",
+      "job_site": "Lot 7"
+    },
+    {
+      "ticket_id": "TCK-3007",
+      "date": "2026-05-07",
+      "customer": "Pine Valley GC",
+      "material": "Topsoil",
+      "quantity": 25,
+      "unit": "",
+      "job_site": "Green Belt"
+    }
+  ]
+}
