@@ -17,7 +17,7 @@ python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onr
 
 GitHub Actions CI runs on push and pull requests to `main`, validating backend tests (`pytest backend/tests`), frontend tests, and frontend typecheck.
 
-See **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)** for the full Phase 7 deployment smoke checklist (frontend, CORS, ephemeral storage caveats).
+See **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)** for the deployed end-to-end smoke verification checklist (CI, backend health, frontend status, messy sample upload, run history, MVP caveats).
 
 Generated run artifacts under `output/` and `local_artifacts/` are intentionally ignored by Git (see `.gitignore`).
 
@@ -127,12 +127,16 @@ Demo persistence is local-first: artifacts under `local_artifacts/` via `Storage
 
 ### Phase 7 Deployment Smoke Test
 
-Before an external demo against the deployed API:
+Before an external demo, use the **[deployed end-to-end smoke verification checklist](docs/deployment_smoke_test.md#deployed-end-to-end-smoke-verification-checklist)**:
 
-- [ ] `python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com` passes
-- [ ] Frontend **Backend Status** shows **Backend connected** (see [docs/deployment_smoke_test.md](docs/deployment_smoke_test.md))
-- [ ] Misconfigured API URL shows visible errors in the UI
-- [ ] Ephemeral storage limits on Render are understood (run history may reset after redeploy)
+- [ ] GitHub Actions CI passing on `main`
+- [ ] Deployed backend `/health` responds
+- [ ] Frontend **Backend Status** shows **Backend connected** (not localhost URL when demoing deployed API)
+- [ ] `samples/aec_messy_sample.csv` upload shows summary with flagged records, top issues, and next steps
+- [ ] Run appears in **Run History** with saved artifact preview
+- [ ] Ephemeral storage limits on Render are understood
+
+Full steps, curl checks, failure testing, and MVP caveats: **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)**.
 
 ## Architecture Overview
 

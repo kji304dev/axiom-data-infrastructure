@@ -2,6 +2,34 @@
 
 Phase 7 readiness guide for verifying the deployed MVP before external demos.
 
+## Deployed end-to-end smoke verification checklist
+
+Use this checklist before an external demo. Check items in order.
+
+### Pre-demo gates
+
+- [ ] **GitHub Actions CI is passing on `main`** — open the repo **Actions** tab and confirm the latest `CI` workflow succeeded (backend tests + frontend tests + typecheck).
+- [ ] **Deployed backend health responds** — `GET /health` returns `status: ok` (see [curl checks](#optional-curl-checks) below).
+- [ ] **Deployed frontend loads** — open the demo UI (local Vite dev server or deployed static host).
+- [ ] **Frontend Backend Status shows connected** — top of page reads **Backend connected (adi-backend v…)**.
+- [ ] **Frontend uses the deployed backend URL, not localhost** — **Backend Status** shows `API base URL: https://your-backend-service.example.com` (not `http://127.0.0.1:8000` or `http://localhost:8000`).
+
+### Messy sample upload flow
+
+- [ ] Upload **`samples/aec_messy_sample.csv`** through the frontend.
+- [ ] **Clean-vs-Dirty Summary Report** appears after upload.
+- [ ] **`records_flagged` is greater than zero** for the messy sample.
+- [ ] **Top issues** are listed (for example missing fields, invalid dates, or bad quantities).
+- [ ] **Recommended next steps** are listed.
+- [ ] A new **run appears in Run History**.
+- [ ] **Saved artifact opens** from **View Result** in Run History.
+- [ ] **Raw JSON preview** remains available below the summary.
+
+### Repo hygiene and storage expectations
+
+- [ ] **`local_artifacts/` is not committed to git** — confirm `git status` is clean and `.gitignore` excludes `local_artifacts/`.
+- [ ] **Local-first deployed storage caveat is understood** — see [Known MVP deployment caveats](#known-mvp-deployment-caveats) below.
+
 ## Current deployment layout
 
 | Component | Status | Notes |
@@ -27,29 +55,37 @@ Optional environment variables (Render dashboard):
 | `ADI_ENGINE_VERSION` | Reported by `/health` |
 | `ADI_CORS_ORIGINS` | Comma-separated extra CORS origins for a deployed/local frontend (e.g. `http://localhost:5173,https://your-frontend.onrender.com`) |
 
-### Frontend API base URL
+## Environment variable verification
 
-The frontend reads **`VITE_API_BASE_URL`** at build/dev time (`frontend/src/api/config.ts`). All API calls go through `buildApiUrl()` so trailing slashes on the base URL do not break endpoint paths.
+The frontend reads **`VITE_API_BASE_URL`** at build/dev time (`frontend/src/api/config.ts`). All API calls use `buildApiUrl()` so trailing slashes on the base URL do not break paths.
 
-| Environment | Setting |
-|-------------|---------|
-| **Local dev (default)** | `VITE_API_BASE_URL=http://127.0.0.1:8000` in `frontend/.env` |
-| **Local frontend → deployed backend** | `VITE_API_BASE_URL=https://your-backend.onrender.com` |
-| **Deployed frontend (future)** | Set `VITE_API_BASE_URL` to the Render backend URL at build time |
+| Environment | `VITE_API_BASE_URL` |
+|-------------|---------------------|
+| **Local backend** | `http://127.0.0.1:8000` or `http://localhost:8000` |
+| **Deployed backend** | `https://your-backend-service.example.com` |
 
-Example local value:
+Example local `frontend/.env`:
 
 ```bash
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Example deployed value placeholder:
+Example deployed `frontend/.env` (local frontend pointed at production API):
 
 ```bash
-VITE_API_BASE_URL=https://your-adi-backend.onrender.com
+VITE_API_BASE_URL=https://your-backend-service.example.com
 ```
 
-Restart the Vite dev server after changing `.env`.
+Verification steps:
+
+1. Open `frontend/.env` (copy from `frontend/.env.example` if needed).
+2. Confirm the value matches the backend you intend to demo against.
+3. Restart the Vite dev server after any change (`cd frontend && npm run dev`).
+4. Confirm **Backend Status** shows the same base URL and **Backend connected**.
+
+For a deployed static frontend, set `VITE_API_BASE_URL` at **build time** (not runtime). Rebuild after changing it.
+
+No secrets are required for MVP demo configuration.
 
 ### Frontend backend health indicator
 
@@ -59,38 +95,90 @@ On load, the demo UI calls `GET /health` and shows **Backend Status** at the top
 - **Backend connected (adi-backend v0.1.0).** — API base URL and `/health` are reachable
 - **Backend unreachable. Check API base URL configuration.** — wrong URL, backend down, or CORS blocking the browser
 
-Verify backend health manually:
-
-```bash
-curl "$VITE_API_BASE_URL/health"
-# or
-curl https://your-adi-backend.onrender.com/health
-```
-
-Expected: `{"status":"ok","service":"adi-backend","version":"0.1.0"}` (version may vary).
-
 ### CORS
 
 The backend allows `http://127.0.0.1:5173` and `http://localhost:5173` by default. For other frontend origins, set `ADI_CORS_ORIGINS` on the backend service.
+
+## Known MVP deployment caveats
+
+- **Current MVP persistence is local filesystem based.** Artifacts are stored under `local_artifacts/runs/<run_id>/result.json` via `StorageBackend`. Run metadata lives in `local_artifacts/run_index.json`.
+- **On Render or other ephemeral platforms, `local_artifacts/` may reset after redeploys, restarts, or instance rotation.** Run History may appear empty on a fresh instance. Artifact retrieval may return **410** if metadata outlives the file.
+- **This is acceptable for the current MVP demo.** Grading, summary generation, and immediate API responses still work for demo verification.
+- **Future production path (not implemented in this repo):**
+  - **S3** for artifacts (via a future `S3StorageBackend`)
+  - **DynamoDB** for run metadata
+
+No AWS dependencies are required for this verification step.
+
+## Manual failure checks (local development only)
+
+Intentionally verify guardrails before a demo. **Do not commit bad configuration.**
+
+1. Edit `frontend/.env` and set a bad URL, for example:
+   ```bash
+   VITE_API_BASE_URL=https://invalid-backend.example.com
+   ```
+2. Restart Vite: `cd frontend && npm run dev`
+3. Reload the demo UI and confirm:
+   - **Backend Status** shows **Backend unreachable. Check API base URL configuration.**
+   - Upload/grade actions show **Could not reach the ADI backend. Check the API base URL and backend deployment.**
+4. Restore the correct value in `frontend/.env` and restart Vite.
+5. Confirm **Backend connected** returns before the demo.
+
+Keep `frontend/.env` out of git (it is listed in `.gitignore`).
+
+## Optional curl checks
+
+Replace the placeholder with your deployed backend URL:
+
+```bash
+export API=https://your-backend-service.example.com
+```
+
+**Health and index:**
+
+```bash
+curl "$API/health"
+curl "$API/"
+```
+
+Expected health response shape: `{"status":"ok","service":"adi-backend","version":"0.1.0"}` (version may vary).
+
+**Run history:**
+
+```bash
+curl "$API/runs"
+```
+
+**JSON grading** (minimal repairable AEC record):
+
+```bash
+curl -X POST "$API/grade/aec" \
+  -H "Content-Type: application/json" \
+  -d '{"records":[{"ticket_id":"1002","date":"05/02/26","customer":"Acme","material":"Gravel","quantity":-4,"unit":"tons","job_site":"North Yard"}]}'
+```
+
+Confirm the response includes a `summary` object with `data_grade`, `records_flagged`, `top_issues`, and `recommended_next_steps`.
+
+**CSV upload:**
+
+```bash
+curl -X POST "$API/grade/aec/upload" \
+  -F "file=@samples/aec_messy_sample.csv"
+```
 
 ## Automated backend smoke test
 
 From the repo root (with venv activated and dependencies installed):
 
 ```bash
-python backend/scripts/smoke_test.py --base-url https://axiom-data-infrastructure.onrender.com
-```
-
-Or use the root wrapper:
-
-```bash
-python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com
+python scripts/smoke_backend.py --base-url https://your-backend-service.example.com
 ```
 
 Environment variable fallback:
 
 ```bash
-export ADI_API_BASE_URL=https://axiom-data-infrastructure.onrender.com
+export ADI_API_BASE_URL=https://your-backend-service.example.com
 python scripts/smoke_backend.py
 ```
 
@@ -98,7 +186,7 @@ Optional messy demo CSV:
 
 ```bash
 python scripts/smoke_backend.py \
-  --base-url https://axiom-data-infrastructure.onrender.com \
+  --base-url https://your-backend-service.example.com \
   --csv-path samples/aec_messy_sample.csv
 ```
 
@@ -111,40 +199,18 @@ Checks performed:
 
 Exit code `0` = all checks passed.
 
-## Manual smoke test checklist
+## Full MVP demo walkthrough (local frontend)
 
-### Backend only (curl)
+1. Set `VITE_API_BASE_URL` to local or deployed backend (see [Environment variable verification](#environment-variable-verification)).
+2. Start backend locally if needed: `uvicorn backend.api.app:app --reload --port 8000`
+3. Start frontend: `cd frontend && npm run dev`
+4. Open `http://127.0.0.1:5173`
+5. Confirm **Backend Status** shows **Backend connected**
+6. Upload `samples/aec_messy_sample.csv`
+7. Verify **Clean-vs-Dirty Summary Report**, **Run History**, and **View Result** (summary + raw JSON)
+8. Optionally upload `samples/aec_clean_sample.csv` for comparison
 
-```bash
-export API=https://axiom-data-infrastructure.onrender.com
-
-curl "$API/health"
-curl "$API/"
-
-curl -X POST "$API/grade/aec" \
-  -H "Content-Type: application/json" \
-  -d '{"records":[{"ticket_id":"1002","date":"05/02/26","customer":"Acme","material":"Gravel","quantity":-4,"unit":"tons","job_site":"North Yard"}]}'
-
-curl -X POST "$API/grade/aec/upload" \
-  -F "file=@samples/aec_messy_sample.csv"
-
-curl "$API/runs"
-```
-
-Confirm the JSON grading response includes a `summary` object with `data_grade`, `records_flagged`, `top_issues`, and `recommended_next_steps`.
-
-### Full MVP demo (local frontend + backend)
-
-1. Start backend locally or point frontend at deployed API (see `VITE_API_BASE_URL` above).
-2. Start frontend: `cd frontend && npm run dev`
-3. Open `http://127.0.0.1:5173`
-4. Upload `samples/aec_messy_sample.csv`
-5. Verify **Clean-vs-Dirty Summary Report** appears
-6. Confirm run appears in **Run History**
-7. Click **View Result** — summary first, then raw JSON
-8. Upload `samples/aec_clean_sample.csv` for comparison
-
-### Misconfigured API base URL
+## Misconfigured API base URL (symptoms)
 
 If `VITE_API_BASE_URL` is wrong:
 
@@ -160,38 +226,12 @@ What to check:
 3. Backend is running (`curl <base-url>/health`)
 4. `ADI_CORS_ORIGINS` on the backend includes your frontend origin if not localhost
 
-## Local-first storage caveat (MVP)
+## Phase 7 quick reference
 
-The current MVP persists:
-
-- **Artifacts** under `local_artifacts/runs/<run_id>/result.json` via `StorageBackend`
-- **Run metadata** in `local_artifacts/run_index.json`
-
-On **ephemeral platforms** (e.g. Render free tier):
-
-- Files may **not survive redeploys, restarts, or instance rotation**
-- `GET /runs` may return `{"runs": []}` on a fresh instance even after successful grading in the same session if storage was cleared
-- `GET /runs/{run_id}/artifact` may return **410** if metadata exists but the artifact file was lost
-
-This is **acceptable for MVP demo and API verification**. Grading, summary generation, and immediate responses still work.
-
-### Future production mapping (not implemented)
-
-| MVP today | Future |
-|-----------|--------|
-| `local_artifacts/` artifacts | **S3** via `S3StorageBackend` |
-| `run_index.json` metadata | **DynamoDB** |
-
-No AWS dependencies are required for this smoke-test step.
-
-## Phase 7 demo readiness checklist
-
-- [ ] `python scripts/smoke_backend.py --base-url <deployed-api>` passes
-- [ ] `GET /health` returns `status: ok`
-- [ ] JSON grading returns `summary`
-- [ ] CSV upload with `aec_messy_sample.csv` returns flagged records
-- [ ] Frontend **Backend Status** shows **Backend connected**
-- [ ] CORS allows your frontend origin (if not localhost)
-- [ ] Clean-vs-Dirty Summary visible after upload
-- [ ] Run History loads (may be empty after redeploy on ephemeral storage)
-- [ ] Understand artifact/history limits on ephemeral deploys
+| Step | Command / action |
+|------|------------------|
+| CI status | GitHub **Actions** → latest `CI` workflow on `main` |
+| Backend smoke | `python scripts/smoke_backend.py --base-url <deployed-api>` |
+| Health | `curl <deployed-api>/health` |
+| Frontend | `cd frontend && npm run dev` → confirm **Backend connected** |
+| E2E demo | Upload `samples/aec_messy_sample.csv` → summary + run history + artifact |
