@@ -168,6 +168,27 @@ def test_grade_aec_endpoint_unrecoverable() -> None:
     )
 
 
+def test_get_cors_origins_includes_localhost_defaults(monkeypatch) -> None:
+    from backend.core.config import DEFAULT_CORS_ORIGINS, get_cors_origins
+
+    monkeypatch.delenv("ADI_CORS_ORIGINS", raising=False)
+    origins = get_cors_origins()
+    for origin in DEFAULT_CORS_ORIGINS:
+        assert origin in origins
+
+
+def test_get_cors_origins_appends_env_values(monkeypatch) -> None:
+    from backend.core.config import get_cors_origins
+
+    monkeypatch.setenv(
+        "ADI_CORS_ORIGINS",
+        "https://app.example.com, https://other.example.com",
+    )
+    origins = get_cors_origins()
+    assert "https://app.example.com" in origins
+    assert "https://other.example.com" in origins
+
+
 def test_grade_aec_upload_success() -> None:
     response = client.post(
         "/grade/aec/upload",

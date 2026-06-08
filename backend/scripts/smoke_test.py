@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ REPAIRABLE_RECORD = {
     "job_site": "North Yard",
 }
 
-DEFAULT_DIRTY_SAMPLE = Path("samples/dirty_aec_ticket.csv")
+DEFAULT_DIRTY_SAMPLE = Path("samples/aec_messy_sample.csv")
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,43 @@ class SmokeCheckResult:
 
 def normalize_base_url(base_url: str) -> str:
     return base_url.rstrip("/")
+
+
+def resolve_base_url(cli_value: str | None) -> str:
+    base_url = cli_value or os.getenv("ADI_API_BASE_URL")
+    if not base_url:
+        raise ValueError(
+            "API base URL is required. Pass --base-url or set ADI_API_BASE_URL."
+        )
+    return normalize_base_url(base_url)
+
+
+def validate_summary_payload(payload: dict[str, Any]) -> SmokeCheckResult:
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        return SmokeCheckResult("summary", False, "missing summary object")
+    required = {
+        "headline",
+        "data_grade",
+        "health_score",
+        "records_received",
+        "records_clean",
+        "records_flagged",
+        "top_issues",
+        "recommended_next_steps",
+    }
+    missing = required - set(summary.keys())
+    if missing:
+        return SmokeCheckResult(
+            "summary",
+            False,
+            f"missing summary keys: {sorted(missing)}",
+        )
+    return SmokeCheckResult(
+        "summary",
+        True,
+        f"data_grade={summary['data_grade']} flagged={summary['records_flagged']}",
+    )
 
 
 def validate_health_payload(payload: dict[str, Any]) -> SmokeCheckResult:
@@ -96,8 +134,16 @@ def validate_grade_payload(payload: dict[str, Any], *, expect_success: bool) -> 
                 detail="expected at least one cleaned record",
             )
 
+    summary_result = validate_summary_payload(payload)
+    if not summary_result.passed:
+        return summary_result
+
     summary = summarize_grade_payload(payload)
-    return SmokeCheckResult(name="grade_aec", passed=True, detail=summary)
+    return SmokeCheckResult(
+        name="grade_aec",
+        passed=True,
+        detail=f"{summary}; {summary_result.detail}",
+    )
 
 
 def validate_upload_payload(payload: dict[str, Any]) -> SmokeCheckResult:
@@ -137,8 +183,16 @@ def validate_upload_payload(payload: dict[str, Any]) -> SmokeCheckResult:
             detail="expected validation_passed=false for dirty sample batch",
         )
 
+    summary_result = validate_summary_payload(payload)
+    if not summary_result.passed:
+        return summary_result
+
     summary = summarize_grade_payload(payload)
-    return SmokeCheckResult(name="grade_aec_upload", passed=True, detail=summary)
+    return SmokeCheckResult(
+        name="grade_aec_upload",
+        passed=True,
+        detail=f"{summary}; {summary_result.detail}",
+    )
 
 
 def summarize_grade_payload(payload: dict[str, Any]) -> str:
@@ -217,6 +271,27 @@ def check_grade_aec_upload(
     return validate_upload_payload(response.json())
 
 
+def check_list_runs(client: httpx.Client) -> SmokeCheckResult:
+    try:
+        response = client.get("/runs", timeout=30.0)
+    except httpx.HTTPError as error:
+        return SmokeCheckResult("list_runs", False, f"request failed: {error}")
+
+    if response.status_code != 200:
+        return SmokeCheckResult("list_runs", False, f"HTTP {response.status_code}")
+
+    payload = response.json()
+    runs = payload.get("runs")
+    if not isinstance(runs, list):
+        return SmokeCheckResult("list_runs", False, "expected runs list in response")
+
+    return SmokeCheckResult(
+        "list_runs",
+        True,
+        f"runs={len(runs)}",
+    )
+
+
 def run_smoke_tests(
     client: httpx.Client,
     csv_path: Path = DEFAULT_DIRTY_SAMPLE,
@@ -225,6 +300,7 @@ def run_smoke_tests(
         check_health(client),
         check_grade_aec(client),
         check_grade_aec_upload(client, csv_path),
+        check_list_runs(client),
     ]
 
 
@@ -240,8 +316,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--base-url",
-        required=True,
-        help="API base URL, for example http://127.0.0.1:8000",
+        default=None,
+        help="API base URL (fallback: ADI_API_BASE_URL env var)",
     )
     parser.add_argument(
         "--csv-path",
@@ -250,7 +326,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    base_url = normalize_base_url(args.base_url)
+    try:
+        base_url = resolve_base_url(args.base_url)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+
     csv_path = Path(args.csv_path)
 
     print(f"Running ADI smoke tests against {base_url}")

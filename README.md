@@ -12,8 +12,10 @@
 pytest backend/tests
 npm test
 npm run typecheck
-python backend/scripts/smoke_test.py --base-url https://axiom-data-infrastructure.onrender.com
+python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com
 ```
+
+See **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)** for the full Phase 7 deployment smoke checklist (frontend, CORS, ephemeral storage caveats).
 
 Generated run artifacts under `output/` and `local_artifacts/` are intentionally ignored by Git (see `.gitignore`).
 
@@ -120,6 +122,15 @@ Demo persistence is local-first: artifacts under `local_artifacts/` via `Storage
 - [ ] `pytest backend/tests` passes
 - [ ] `npm test` passes
 - [ ] `npm run typecheck` passes
+
+### Phase 7 Deployment Smoke Test
+
+Before an external demo against the deployed API:
+
+- [ ] `python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com` passes
+- [ ] Frontend loads with correct `VITE_API_BASE_URL` (see [docs/deployment_smoke_test.md](docs/deployment_smoke_test.md))
+- [ ] Misconfigured API URL shows visible errors in the UI
+- [ ] Ephemeral storage limits on Render are understood (run history may reset after redeploy)
 
 ## Architecture Overview
 
@@ -438,6 +449,7 @@ On Render, set the same keys in the service **Environment** settings instead of 
 | `APP_ENV` | `development` | Deployment environment label (`development`, `staging`, `production`) |
 | `LOG_LEVEL` | `INFO` | Structured log verbosity for the Python engine (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `ADI_ENGINE_VERSION` | `0.1.0` | Reported by `GET /health` and available for future release tagging |
+| `ADI_CORS_ORIGINS` | _(empty)_ | Comma-separated extra CORS origins for non-localhost frontends |
 
 These variables are intentionally lightweight today. The naming leaves room to add database URLs, API keys, and feature flags later without restructuring configuration.
 
@@ -455,15 +467,25 @@ See **[Demo: Clean vs Dirty AEC data](#demo-clean-vs-dirty-aec-data)** above for
 
 The `frontend/` app provides grading, Clean-vs-Dirty Summary display, Run History, and saved artifact preview over `GET /runs` and `GET /runs/{run_id}/artifact`.
 
+**Frontend API base URL:** set `VITE_API_BASE_URL` in `frontend/.env` (see `frontend/.env.example`).
+
+| Target | `VITE_API_BASE_URL` |
+|--------|---------------------|
+| Local backend (default) | `http://127.0.0.1:8000` |
+| Deployed Render backend | `https://axiom-data-infrastructure.onrender.com` |
+
+Restart the Vite dev server after changing `.env`. If the frontend origin is not localhost, set `ADI_CORS_ORIGINS` on the backend (comma-separated).
+
 ### Smoke test
 
-Validate the three core API endpoints locally or against the deployed service (see **Verification**):
+Validate core API endpoints locally or against the deployed service (see **Verification** and **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)**):
 
 ```bash
-python backend/scripts/smoke_test.py --base-url http://127.0.0.1:8000
+python scripts/smoke_backend.py --base-url http://127.0.0.1:8000
+# or: export ADI_API_BASE_URL=https://axiom-data-infrastructure.onrender.com && python scripts/smoke_backend.py
 ```
 
-The script checks `GET /health`, `POST /grade/aec` with one repairable record, and `POST /grade/aec/upload` using `samples/dirty_aec_ticket.csv`. It prints `PASS`/`FAIL` for each check and exits with a non-zero status if any check fails. Response summaries include counts and scores only — not full customer record payloads.
+The script checks `GET /health`, `POST /grade/aec` with one repairable record (including Clean-vs-Dirty `summary`), `POST /grade/aec/upload` using `samples/aec_messy_sample.csv`, and `GET /runs`. It prints `PASS`/`FAIL` for each check and exits with a non-zero status if any check fails. Response summaries include counts and scores only — not full customer record payloads.
 
 ### Endpoints
 
@@ -677,10 +699,26 @@ curl -X POST "https://axiom-data-infrastructure.onrender.com/grade/aec" \
 
 ```bash
 curl -X POST "https://axiom-data-infrastructure.onrender.com/grade/aec/upload" \
-  -F "file=@samples/dirty_aec_ticket.csv"
+  -F "file=@samples/aec_messy_sample.csv"
 ```
 
 The TypeScript operator CLI is not deployed by this blueprint; run it locally or deploy it separately if needed.
+
+The React demo frontend (`frontend/`) is also not in `render.yaml`. Run it locally with `npm run dev`, or deploy it as a static site and set `VITE_API_BASE_URL` to this backend URL at build time.
+
+### Ephemeral storage (MVP caveat)
+
+On Render, the backend uses **local filesystem** persistence (`local_artifacts/` for artifacts and `run_index.json` for run metadata). Files may not survive redeploys, restarts, or instance rotation. Grading and summary responses still work; Run History may appear empty after a fresh deploy. This is acceptable for MVP demos. Future production mapping: **S3** for artifacts, **DynamoDB** for run metadata (not implemented in this repo yet).
+
+### Deployed smoke test
+
+After deploy, run the automated checklist:
+
+```bash
+python scripts/smoke_backend.py --base-url https://axiom-data-infrastructure.onrender.com
+```
+
+Full manual steps: **[docs/deployment_smoke_test.md](docs/deployment_smoke_test.md)**.
 
 ### Note
 
