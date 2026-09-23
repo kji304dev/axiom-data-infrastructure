@@ -123,7 +123,7 @@ export function App() {
         <div className="brand-block">
           <div className="brand-mark">
             <h1 className="brand-name">ADI</h1>
-            <p className="brand-tag">Automated Data Integrity</p>
+            <p className="brand-tag">Axiom Data Infrastructure</p>
           </div>
           <p className="brand-subtitle">
             Data quality intelligence for messy operational data — upload,
