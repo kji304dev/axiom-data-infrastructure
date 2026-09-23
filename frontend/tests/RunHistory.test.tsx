@@ -57,8 +57,8 @@ describe("RunHistory", () => {
 
     expect(await screen.findByTestId("run-row-abc123")).toBeInTheDocument();
     expect(screen.getByText(/abc123/)).toBeInTheDocument();
-    expect(screen.getByText(/csv_upload/)).toBeInTheDocument();
-    expect(screen.getByText(/failed records: 18/)).toBeInTheDocument();
+    expect(screen.getByText(/CSV upload/)).toBeInTheDocument();
+    expect(screen.getByText("18")).toBeInTheDocument();
   });
 
   it("fetches and displays artifact JSON after View Result", async () => {

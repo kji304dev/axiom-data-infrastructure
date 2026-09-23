@@ -1,3 +1,5 @@
+import type { GradeArtifact } from "./artifact.js";
+
 export type RunInputType = "json" | "csv_upload";
 
 export interface RunIndexEntry {
@@ -15,4 +17,4 @@ export interface RunsResponse {
   runs: RunIndexEntry[];
 }
 
-export type GradeArtifact = Record<string, unknown>;
+export type { GradeArtifact };

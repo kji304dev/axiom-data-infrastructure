@@ -48,18 +48,31 @@ export function BackendStatus() {
     <section
       aria-labelledby="backend-status-heading"
       data-testid="backend-status"
+      className="status-banner"
+      data-state={status}
     >
-      <h2 id="backend-status-heading">Backend Status</h2>
-      <p>
-        API base URL: <code>{getApiBaseUrl()}</code>
-      </p>
-      {status === "checking" ? (
-        <p role="status">{detail}</p>
-      ) : status === "connected" ? (
-        <p role="status">{detail}</p>
-      ) : (
-        <p role="alert">{detail}</p>
-      )}
+      <span className="status-dot" aria-hidden="true" />
+      <div>
+        <h2 id="backend-status-heading" className="visually-hidden">
+          Backend Status
+        </h2>
+        <p className="status-copy">
+          API base URL: <code>{getApiBaseUrl()}</code>
+        </p>
+        {status === "checking" ? (
+          <p className="status-copy" role="status">
+            {detail}
+          </p>
+        ) : status === "connected" ? (
+          <p className="status-copy" role="status">
+            {detail}
+          </p>
+        ) : (
+          <p className="status-copy" role="alert">
+            {detail}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

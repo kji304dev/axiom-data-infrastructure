@@ -42,12 +42,12 @@ describe("App grading errors", () => {
     render(<App />);
     const user = userEvent.setup();
 
-    const fileInput = screen.getByLabelText(/Upload CSV/i);
+    const fileInput = screen.getByLabelText(/Upload CSV or JSON/i);
     const csvFile = new File(["ticket_id,date\n1,01/01/26"], "demo.csv", {
       type: "text/csv",
     });
     await user.upload(fileInput, csvFile);
-    await user.click(screen.getByRole("button", { name: "Upload CSV" }));
+    await user.click(screen.getByRole("button", { name: "Upload & Analyze" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not reach the ADI backend. Check the API base URL and backend deployment.",
