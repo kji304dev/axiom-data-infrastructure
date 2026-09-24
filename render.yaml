@@ -6,3 +6,6 @@ services:
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.api.app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    envVars:
+      - key: ADI_CORS_ORIGINS
+        value: https://adi-frontend.onrender.com

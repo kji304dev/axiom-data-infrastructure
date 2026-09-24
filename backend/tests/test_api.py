@@ -173,8 +173,32 @@ def test_get_cors_origins_includes_localhost_defaults(monkeypatch) -> None:
 
     monkeypatch.delenv("ADI_CORS_ORIGINS", raising=False)
     origins = get_cors_origins()
+    assert "http://127.0.0.1:5173" in origins
+    assert "http://localhost:5173" in origins
     for origin in DEFAULT_CORS_ORIGINS:
         assert origin in origins
+
+
+def test_get_cors_origins_allows_deployed_frontend_via_env(monkeypatch) -> None:
+    from backend.core.config import get_cors_origins
+
+    monkeypatch.setenv(
+        "ADI_CORS_ORIGINS",
+        "https://adi-frontend.onrender.com",
+    )
+    origins = get_cors_origins()
+    assert "http://127.0.0.1:5173" in origins
+    assert "http://localhost:5173" in origins
+    assert "https://adi-frontend.onrender.com" in origins
+
+
+def test_get_cors_origins_rejects_unrelated_origin_by_default(monkeypatch) -> None:
+    from backend.core.config import get_cors_origins
+
+    monkeypatch.delenv("ADI_CORS_ORIGINS", raising=False)
+    origins = get_cors_origins()
+    assert "https://evil.example.com" not in origins
+    assert "https://adi-frontend.onrender.com" not in origins
 
 
 def test_get_cors_origins_appends_env_values(monkeypatch) -> None:
@@ -187,6 +211,7 @@ def test_get_cors_origins_appends_env_values(monkeypatch) -> None:
     origins = get_cors_origins()
     assert "https://app.example.com" in origins
     assert "https://other.example.com" in origins
+    assert "https://evil.example.com" not in origins
 
 
 def test_grade_aec_upload_success() -> None:
